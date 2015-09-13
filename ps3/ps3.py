@@ -46,25 +46,26 @@ def disparity_ssd(L, R, window_size = 21):
     r_strides = (R.shape[1] * R.itemsize, R.itemsize, R.itemsize * R.shape[1], R.itemsize)
     r_strips = as_strided(R, r_shape, r_strides)
 
-    for y in range(height):
+    for y in range(offset, height - offset):
         """ Compute Y Offsets """
-        y_up_offset = offset if y >= offset else y
-        y_down_offset = offset if y + offset < height else height - y - 1
+        # y_up_offset = offset if y >= offset else y
+        # y_down_offset = offset if y + offset < height else height - y - 1
         # print "y d off:", y_down_offset
-
-        for x in range(width):
+        r_strip = r_strips[y]
+        for x in range(offset,width-offset):
             """ Compute X Offsets """
-            x_left_offset = offset if x >= offset else x
-            x_right_offset = offset if x + offset < width else width - x - 1
+            # x_left_offset = offset if x >= offset else x
+            # x_right_offset = offset if x + offset < width else width - x - 1
 
-            r_strip = r_strips[y]
-
-            l_patch = get_patch(L, y_up_offset, y_down_offset, x_left_offset, x_right_offset, y, x)
+            # l_patch = get_patch(L, y_up_offset, y_down_offset, x_left_offset, x_right_offset, y, x)
+            l_patch = get_patch(L, offset, offset, offset, offset, y, x)
             l_strip = as_strided(l_patch, r_strip.shape, (0, l_patch.itemsize*window_size, l_patch.itemsize))
 
 
             ssd = ((l_strip - r_strip)**2).sum((1,2))
-            print "ssd\n",ssd
+
+            x_prime = np.argmin(ssd) + offset
+            D[y][x] = x_prime - x
 
     return D
 
