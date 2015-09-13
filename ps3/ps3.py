@@ -42,7 +42,7 @@ def disparity_ssd(L, R, window_size = 21):
     right_shift = False
     search_range = width / 3
 
-    r_shape = (R.shape[0]-(window_size-1), R.shape[1]-(window_size-1), window_size, window_size)
+    r_shape = (R.shape[0] - (2 * offset), R.shape[1] - (2 * offset), window_size, window_size)
     r_strides = (R.shape[1] * R.itemsize, R.itemsize, R.itemsize * R.shape[1], R.itemsize)
     r_strips = as_strided(R, r_shape, r_strides)
 
@@ -268,7 +268,7 @@ def main():
     """Run code/call functions to solve problems."""
     # 1
     # """
-    apply_disparity_ssd("pair0-L.png", "pair0-R.png", "1", 11)
+    apply_disparity_ssd("pair0-L.png", "pair0-R.png", "1", 21)
     # """
     # apply_disparity_norm("pair0-L.png", "pair0-R.png", "test", 3)
 
@@ -293,7 +293,7 @@ def main():
     # 2
     # TODO: Apply disparity_ssd() to pair1-L.png and pair1-R.png (in both directions)
     """
-    apply_disparity_ssd("pair1-L.png", "pair1-R.png", "2", 15)
+    apply_disparity_ssd("pair1-L.png", "pair1-R.png", "2", 7)
     """
 
     # 3
