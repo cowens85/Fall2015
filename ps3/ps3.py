@@ -45,13 +45,17 @@ def disparity_ssd(L, R, window_size = 21):
     r_shape = (R.shape[0]-(window_size-1), R.shape[1]-(window_size-1), window_size, window_size)
     r_strides = (R.shape[1] * R.itemsize, R.itemsize, R.itemsize * R.shape[1], R.itemsize)
     r_strips = as_strided(R, r_shape, r_strides)
+    print r_strips.shape
+    print height
+    print height - offset
+    print R.shape
 
     for y in range(offset, height - offset):
         """ Compute Y Offsets """
         # y_up_offset = offset if y >= offset else y
         # y_down_offset = offset if y + offset < height else height - y - 1
         # print "y d off:", y_down_offset
-        r_strip = r_strips[y]
+        r_strip = r_strips[y - offset]
         for x in range(offset,width-offset):
             """ Compute X Offsets """
             # x_left_offset = offset if x >= offset else x
