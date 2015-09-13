@@ -45,10 +45,7 @@ def disparity_ssd(L, R, window_size = 21):
     r_shape = (R.shape[0]-(window_size-1), R.shape[1]-(window_size-1), window_size, window_size)
     r_strides = (R.shape[1] * R.itemsize, R.itemsize, R.itemsize * R.shape[1], R.itemsize)
     r_strips = as_strided(R, r_shape, r_strides)
-    print r_strips.shape
-    print height
-    print height - offset
-    print R.shape
+
 
     for y in range(offset, height - offset):
         """ Compute Y Offsets """
@@ -63,12 +60,15 @@ def disparity_ssd(L, R, window_size = 21):
 
             # l_patch = get_patch(L, y_up_offset, y_down_offset, x_left_offset, x_right_offset, y, x)
             l_patch = get_patch(L, offset, offset, offset, offset, y, x)
-            l_strip = as_strided(l_patch, r_strip.shape, (0, l_patch.itemsize*window_size, l_patch.itemsize))
-
-
+            # print "###################\n"
+            # print l_patch
+            # print "--------------------"
+            l_strip = np.tile(l_patch, (r_strip.shape[0],1,1))
+            # l_strip = as_strided(l_patch, r_strip.shape, (0, l_patch.itemsize*window_size, l_patch.itemsize))
+            # print l_strip
+            # print "###################\n"
             ssd = ((l_strip - r_strip)**2).sum((1,2))
-
-            x_prime = np.argmin(ssd) + offset
+            x_prime = np.argmin(ssd)
             D[y][x] = x_prime - x
 
     return D
