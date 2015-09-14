@@ -90,10 +90,12 @@ def disparity_ncorr(L, R, window_size=19):
 
         for x in range(offset,width-offset):
             l_patch = get_patch(L_padded, offset, offset, offset, offset, y, x)
-            result = cv2.matchTemplate(r_strip, l_patch, method=cv2.TM_CCOEFF_NORMED)
+
+            result = cv2.matchTemplate(r_strip, l_patch, method=cv2.TM_CCORR_NORMED)
+            # result = cv2.matchTemplate(r_strip, l_patch, method=cv2.TM_CCOEFF_NORMED)
 
             upper_left = cv2.minMaxLoc(result)[3]
-            x_prime = upper_left[1] + offset
+            x_prime = upper_left[0] + offset
 
             D[y-offset][x-offset] = x_prime - x
 
@@ -127,15 +129,74 @@ def apply_disparity_norm(l_image, r_image, problem, window_size=21):
     R = cv2.imread(os.path.join('input', r_image), 0)
 
     # Compute disparity (using method disparity_ssd defined in disparity_ssd.py)
-    D = disparity_ncorr(L, R, window_size)
+    D_L = disparity_ncorr(L, R, window_size)
+    D_R = disparity_ncorr(R, L, window_size)
 
-    min = D.min()
+    min = D_L.min()
     if min < 0:
-        D += np.abs(min)
-    max = D.max()
-    D *= 255.0/max
+        D_L += np.abs(min)
+    max = D_L.max()
+    D_L *= 255.0/max
 
-    cv2.imwrite(os.path.join("output", "ps3-" + problem + "-a-1.png"), np.clip(D, 0, 255).astype(np.uint8))
+    min = D_R.min()
+    if min < 0:
+        D_R += np.abs(min)
+    D_R *= 255.0/D_R.max()
+
+
+    cv2.imwrite(os.path.join("output", "ps3-" + problem + "-a-1.png"), np.clip(D_L, 0, 255).astype(np.uint8))
+    cv2.imwrite(os.path.join("output", "ps3-" + problem + "-a-2.png"), np.clip(D_R, 0, 255).astype(np.uint8))
+
+def part4_noise(window_size=9,kernel_size=5,sigma=5):
+    L = cv2.imread(os.path.join('input', "pair1-L.png"), 0)
+    R = cv2.imread(os.path.join('input', "pair1-R.png"), 0)
+
+    L = cv2.GaussianBlur(L.copy(), (kernel_size,kernel_size), sigma)
+    R = cv2.GaussianBlur(R.copy(), (kernel_size,kernel_size), sigma)
+
+    # Compute disparity (using method disparity_ssd defined in disparity_ssd.py)
+    D_L = disparity_ncorr(L, R, window_size)
+    D_R = disparity_ncorr(R, L, window_size)
+
+    min = D_L.min()
+    if min < 0:
+        D_L += np.abs(min)
+    max = D_L.max()
+    D_L *= 255.0/max
+
+    min = D_R.min()
+    if min < 0:
+        D_R += np.abs(min)
+    D_R *= 255.0/D_R.max()
+
+
+    cv2.imwrite(os.path.join("output", "ps3-4-b-1.png"), np.clip(D_L, 0, 255).astype(np.uint8))
+    cv2.imwrite(os.path.join("output", "ps3-4-b-2.png"), np.clip(D_R, 0, 255).astype(np.uint8))
+
+def part4_contrast(window_size=9):
+    L = cv2.imread(os.path.join('input', "pair1-L.png"), 0)
+    R = cv2.imread(os.path.join('input', "pair1-R.png"), 0)
+    L *= 1.1
+    R *= 1.1
+
+    # Compute disparity (using method disparity_ssd defined in disparity_ssd.py)
+    D_L = disparity_ncorr(L, R, window_size)
+    D_R = disparity_ncorr(R, L, window_size)
+
+    min = D_L.min()
+    if min < 0:
+        D_L += np.abs(min)
+    max = D_L.max()
+    D_L *= 255.0/max
+
+    min = D_R.min()
+    if min < 0:
+        D_R += np.abs(min)
+    D_R *= 255.0/D_R.max()
+
+
+    cv2.imwrite(os.path.join("output", "ps3-4-b-3.png"), np.clip(D_L, 0, 255).astype(np.uint8))
+    cv2.imwrite(os.path.join("output", "ps3-4-b-4.png"), np.clip(D_R, 0, 255).astype(np.uint8))
 
 def part_3_noise(window_size=9,kernel_size=5,sigma=5):
     L = cv2.imread(os.path.join('input', "pair1-L.png"), 0) * (1 / 255.0)  # grayscale, scale to [0.0, 1.0]
@@ -161,9 +222,12 @@ def part_3_noise(window_size=9,kernel_size=5,sigma=5):
     cv2.imwrite(os.path.join("output", "ps3-3-a-1.png"), np.clip(D_L, 0, 255).astype(np.uint8))
     cv2.imwrite(os.path.join("output", "ps3-3-a-2.png"), np.clip(D_R, 0, 255).astype(np.uint8))
 
-def part_3_contrast(window_size=9,kernel_size=5,sigma=5):
-    L = cv2.imread(os.path.join('input', "pair1-L.png"), 0) * (1 / 255.0) * 1.1  # grayscale, scale to [0.0, 1.0]
-    R = cv2.imread(os.path.join('input', "pair1-R.png"), 0) * (1 / 255.0) * 1.1
+def part_3_contrast(window_size=9):
+    L = cv2.imread(os.path.join('input', "pair1-L.png"), 0)
+    R = cv2.imread(os.path.join('input', "pair1-R.png"), 0)
+
+    L *= 1.1
+    R *= 1.1
 
     # Compute disparity (using method disparity_ssd defined in disparity_ssd.py)
     D_L = disparity_ssd(L, R, window_size)  # TODO: implemenet disparity_ssd()
@@ -183,28 +247,100 @@ def part_3_contrast(window_size=9,kernel_size=5,sigma=5):
     cv2.imwrite(os.path.join("output", "ps3-3-b-1.png"), np.clip(D_L, 0, 255).astype(np.uint8))
     cv2.imwrite(os.path.join("output", "ps3-3-b-2.png"), np.clip(D_R, 0, 255).astype(np.uint8))
 
+def get_edges(image, sigma=.33):
+    channels = cv2.split(image)
+    if len(channels) == 3:
+        gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image.copy()
+
+    v = np.median(gray)
+    lower = int(max(0, (1.0 - sigma) * v))
+    upper = int(min(255, (1.0 + sigma) * v))
+
+
+    return cv2.Canny(gray, threshold1=lower, threshold2=upper)
+
+def part_5(l_image, r_image, window_size=15):
+    L = cv2.imread(os.path.join('input', l_image), 0)
+    R = cv2.imread(os.path.join('input', r_image), 0)
+
+    L_blur = cv2.GaussianBlur(L.copy(), (21, 21), 2)
+    R_blur = cv2.GaussianBlur(R.copy(), (21, 21), 2)
+
+    L = L_blur
+    R = R_blur
+
+
+    # L_edges = get_edges(L)
+    # R_edges = get_edges(R)
+    #
+    # L = L_edges
+    # R = R_edges
+
+
+    # D_L = disparity_ssd(L, R, window_size)
+    # D_R = disparity_ssd(R, L, window_size)
+
+    D_L = disparity_ncorr(L, R, window_size)
+    D_R = disparity_ncorr(R, L, window_size)
+
+    min = D_L.min()
+    if min < 0:
+        D_L += np.abs(min)
+    max = D_L.max()
+    D_L *= 255.0/max
+
+    min = D_R.min()
+    if min < 0:
+        D_R += np.abs(min)
+    D_R *= 255.0/D_R.max()
+
+
+    cv2.imwrite(os.path.join("output", "ps3-5-a-1.png"), np.clip(D_L, 0, 255).astype(np.uint8))
+    cv2.imwrite(os.path.join("output", "ps3-5-a-2.png"), np.clip(D_R, 0, 255).astype(np.uint8))
+
 def main():
 
     """Run code/call functions to solve problems."""
-    # 1
-    # apply_disparity_ssd("pair0-L.png", "pair0-R.png", "1", 15)
+    """ 1 """
+    apply_disparity_ssd("pair0-L.png", "pair0-R.png", "1", 15)
 
-    # 2
-    # apply_disparity_ssd("pair1-L.png", "pair1-R.png", "2", 9)
+    """ 2 """
+    apply_disparity_ssd("pair1-L.png", "pair1-R.png", "2", 9)
 
-    # 3
-    # TODO: Apply disparity_ssd() to noisy versions of pair1 images
-    # part_3_noise()
+    """ 3 """
+    part_3_noise()
 
-    # TODO: Boost contrast in one image and apply again
-    # part_3_contrast()
+    part_3_contrast()
 
-    # 4
-    # TODO: Implement disparity_ncorr() and apply to pair1 images (original, noisy and contrast-boosted)
-    apply_disparity_norm("pair1-L.png", "pair1-R.png", "4", 9)
+    """ 4 """
+    apply_disparity_norm("pair1-L.png", "pair1-R.png", "4", 7)
+    part4_contrast()
+    part4_noise()
 
-    # 5
-    # TODO: Apply stereo matching to pair2 images, try pre-processing the images for best results
+    """ 5 """
+    part_5("pair2-L.png", "pair2-R.png")
+
+
+
+
+
+
+
+
+
+    # D_L = cv2.imread(os.path.join("output", "ps3-5-a-1-ncorr-3win.png"))
+    # D_R = cv2.imread(os.path.join("output", "ps3-5-a-2-ncorr-3win.png"))
+    #
+    # D_L = cv2.medianBlur(D_L,3)
+    # D_R = cv2.medianBlur(D_R,3)
+    #
+    # D_L = np.minimum(D_L, cv2.imread(os.path.join("output", "ps3-5-a-1-ncorr-9-ccorr.png")))
+    # D_R = np.minimum(D_R, cv2.imread(os.path.join("output", "ps3-5-a-2-ncorr-9-ccorr.png")))
+    #
+    # cv2.imwrite(os.path.join("output", "ps3-5-a-1-ncorr-min.png"), np.clip(D_L, 0, 255).astype(np.uint8))
+    # cv2.imwrite(os.path.join("output", "ps3-5-a-2-ncorr-min.png"), np.clip(D_R, 0, 255).astype(np.uint8))
 
 
 if __name__ == "__main__":
