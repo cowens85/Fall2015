@@ -205,16 +205,17 @@ def get_trans_and_F(pts2d_a, pts2d_b):
     #
     # Compute T_a
     #
-    T_scale = np.zeros((3, 3),dtype=np.float)
-    T_scale[0][0] = 1.0 / np.abs(np.max(pts2d_a[:, 0:1]))
-    T_scale[1][1] = 1.0 / np.abs(np.max(pts2d_a[:, 1:2]))
-    T_scale[2][2] = 1.0
-
-
     T_mean = np.zeros((3, 3), dtype=np.float)
     np.fill_diagonal(T_mean, 1.0)
-    T_mean[0][2] = -np.mean(pts2d_a[:, 0:1])
-    T_mean[1][2] = -np.mean(pts2d_a[:, 1:2])
+    u_mean = np.mean(pts2d_a[:, 0:1])
+    v_mean = np.mean(pts2d_a[:, 1:2])
+    T_mean[0][2] = -u_mean
+    T_mean[1][2] = -v_mean
+
+    T_scale = np.zeros((3, 3),dtype=np.float)
+    T_scale[0][0] = 1.0 / np.std(pts2d_a[:, 0:1] - u_mean)
+    T_scale[1][1] = 1.0 / np.std(pts2d_a[:, 1:2] - v_mean)
+    T_scale[2][2] = 1.0
 
     T_a = np.dot(T_scale, T_mean)
 
@@ -232,17 +233,19 @@ def get_trans_and_F(pts2d_a, pts2d_b):
     #
     # Compute T_b
     #
-    T_scale = np.zeros((3, 3), dtype=np.float)
-    T_scale[0][0] = 1.0 / np.abs(np.max(pts2d_b[:, 0:1]))
-    T_scale[1][1] = 1.0 / np.abs(np.max(pts2d_b[:, 1:2]))
-    T_scale[2][2] = 1.0
-
     T_mean = np.zeros((3, 3), dtype=np.float)
     np.fill_diagonal(T_mean, 1.0)
-    T_mean[0][2] = -np.mean(pts2d_b[:, 0:1])
-    T_mean[1][2] = -np.mean(pts2d_b[:, 1:2])
+    u_mean = np.mean(pts2d_b[:, 0:1])
+    v_mean = np.mean(pts2d_b[:, 1:2])
+    T_mean[0][2] = -u_mean
+    T_mean[1][2] = -v_mean
 
-    T_b = T_scale * T_mean
+    T_scale = np.zeros((3, 3), dtype=np.float)
+    T_scale[0][0] = 1.0 / np.std(pts2d_b[:, 0:1] - u_mean)
+    T_scale[1][1] = 1.0 / np.std(pts2d_b[:, 1:2] - v_mean)
+    T_scale[2][2] = 1.0
+
+    T_b = np.dot(T_scale, T_mean)
 
     new_pts_b = np.concatenate((pts2d_b, np.ones((pts2d_b.shape[0], 1))), 1)
     pts_b_transformed = pts2d_b.copy()
