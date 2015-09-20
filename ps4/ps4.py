@@ -50,14 +50,14 @@ def solve_least_squares(pts3d, pts2d):
     B = np.zeros((2 * N, 1))
 
 
-    for dex in range(0, N):
-        u,v = pts2d[dex]
-        X, Y, Z = pts3d[dex]
-        A[2 * dex] = np.array([X, Y, Z, 1, 0, 0, 0, 0, -u * X, -u * Y, -u * Z])
-        B[2 * dex] = u
+    for index in range(0, N):
+        u,v = pts2d[index]
+        x, y, z = pts3d[index]
+        A[2 * index] = np.array([x, y, z, 1, 0, 0, 0, 0, -u * x, -u * y, -u * z])
+        B[2 * index] = u
 
-        A[2 * dex + 1] = np.array([ 0, 0, 0, 0,X, Y, Z, 1, -v * X, -v * Y, -v * Z])
-        B[2 * dex + 1] = v
+        A[2 * index + 1] = np.array([ 0, 0, 0, 0,x, y, z, 1, -v * x, -v * y, -v * z])
+        B[2 * index + 1] = v
 
     m, residuals, rank, singular_values = np.linalg.lstsq(A,B)
 
@@ -92,10 +92,10 @@ def project_points(pts3d, M):
     new_pts = np.concatenate((pts3d, last_col),1)
 
     #loop, dot product with M, normalize, set value in pointa2d
-    for dex in range(0, N):
-        homo_proj_pt = np.dot(M, new_pts[dex])
+    for index in range(0, N):
+        homo_proj_pt = np.dot(M, new_pts[index])
         inhomo_proj = homo_proj_pt / homo_proj_pt[2]
-        pts2d_projected[dex] = np.array([inhomo_proj[0], inhomo_proj[1]])
+        pts2d_projected[index] = np.array([inhomo_proj[0], inhomo_proj[1]])
 
     return pts2d_projected
 
@@ -137,6 +137,7 @@ def calibrate_camera(pts3d, pts2d):
 
     best_m_error = None
     lowest_avg_residual = None
+    print "\n###\nPart 1b\n###\n\nAverage Residual per trial K:"
     for k in k_choices:
         lowest_avg_residual_per_k = None
         best_m_error_per_k = None
@@ -164,6 +165,7 @@ def calibrate_camera(pts3d, pts2d):
             lowest_avg_residual = lowest_avg_residual_per_k
             best_m_error = best_m_error_per_k
 
+        print lowest_avg_residual_per_k
 
     return best_m_error[0], best_m_error[1]
 
@@ -219,16 +221,10 @@ def get_trans_and_F(pts2d_a, pts2d_b):
 
     T_a = np.dot(T_scale, T_mean)
 
-    print "T scale:\n", T_scale
-    print "T mean:\n", T_mean
-    print "T_a:\n", T_a
-
     new_pts_a = np.concatenate((pts2d_a, np.ones((pts2d_a.shape[0], 1))), 1)
     pts_a_transformed = pts2d_a.copy()
     for index in range(pts2d_a.shape[0]):
-        tmp = np.dot(T_a, new_pts_a[index])
-        print tmp[:-1]
-        pts_a_transformed[index] = tmp[:-1]
+        pts_a_transformed[index] = np.dot(T_a, new_pts_a[index])[:-1]
 
     #
     # Compute T_b
@@ -257,18 +253,12 @@ def get_trans_and_F(pts2d_a, pts2d_b):
 
 
 # Driver code
-def draw_epipolar(F):
-    pic_a = cv2.imread("input/pic_a.jpg")
-    pic_b = cv2.imread("input/pic_b.jpg")
+def draw_epipolar(F, pts2d, pic):
+    num_row = pic.shape[0]
+    num_col = pic.shape[1]
 
-    print pic_b.shape
-    num_row = pic_b.shape[0]
-    num_col = pic_b.shape[1]
-
-    pts2d_pic_a = read_points(os.path.join(input_dir, PIC_A_2D))
-
-    last_col = np.ones((pts2d_pic_a.shape[0], 1))
-    new_pts_pic_a = np.concatenate((pts2d_pic_a, last_col), 1)
+    last_col = np.ones((pts2d.shape[0], 1))
+    new_pts_pic_a = np.concatenate((pts2d, last_col), 1)
 
     for point in new_pts_pic_a:
         l_b = np.dot(F, point)
@@ -277,25 +267,14 @@ def draw_epipolar(F):
         P_i_L = np.cross(l_b, l_L)
         P_i_R = np.cross(l_b, l_R)
 
-        print "edges"
-        print l_L
-        print l_R
-
-        print P_i_L
-        print P_i_R
-
         x1 = int(P_i_L[0] / P_i_L[2])
         y1 = int(P_i_L[1] / P_i_L[2])
         x2 = int(P_i_R[0] / P_i_R[2])
         y2 = int(P_i_R[1] / P_i_R[2])
 
-        print "points"
-        print ((x1, y1), (x2, y2))
-        cv2.circle(pic_a, (int(point[0]), int(point[1])), 4, (0, 255, 0), 1)
-        cv2.line(pic_b, (x1, y1), (x2, y2), (255, 0, 0), 1)
-    cv2.imshow("foo", pic_b)
-    cv2.imshow("bar", pic_a)
-    input()
+        cv2.line(pic, (x1, y1), (x2, y2), (255, 0, 0), 1)
+
+    return pic
 
 
 def main():
@@ -309,6 +288,9 @@ def main():
     # Solve for transformation matrix using least squares
     M, error = solve_least_squares(pts3d_norm, pts2d_norm_pic_a)
 
+    #Print M
+    print "\n###\nPart 1a\n###\n\nThe matrix M recovered from the normalized points:\n", M, "\n\n"
+
     # Project 3D points to 2D
     pts2d_projected = project_points(pts3d_norm, M)
 
@@ -316,8 +298,8 @@ def main():
     residuals = get_residuals(pts2d_norm_pic_a, pts2d_projected)
 
     # Print the <u, v> projection of the last point, and the corresponding residual
-    print pts2d_projected[-1]
-    print residuals[-1]
+    print "\nThe < u, v > projection of the last point given your M matrix:\n", pts2d_projected[-1], "\n\n"
+    print "\nThe residual between that projected location and the actual one given\n", residuals[-1], "\n\n"
 
     # 1b
     # Read points
@@ -328,18 +310,20 @@ def main():
 
     # find the best transform (bestM)
     bestM, error = calibrate_camera(pts3d, pts2d_pic_b)
+    print "\n\nbestM:\n", bestM, "\n\n"
 
     # 1c
-    # TODO: Compute the camera location using bestM
+    # Compute the camera location using bestM
     Q = bestM[:3,:3]
     m4 = bestM[:3, -1].reshape((3,1))
     center = -1 * np.dot(np.linalg.inv(Q), m4)
-    print center
+    print "\n###\nPart 1c\n###\n\nCamera Center in the world:\n", center, "\n\n"
 
     # 2a
     # find the raw fundamental matrix
     pts2d_pic_a = read_points(os.path.join(input_dir, PIC_A_2D))
     F = compute_fundamental_matrix(pts2d_pic_a, pts2d_pic_b)
+    print "\n###\nPart 2a\n###\n\nF:\n", F, "\n\n"
 
     # 2b
     # Reduce the rank of the fundamental matrix
@@ -347,14 +331,20 @@ def main():
     s[s.argmin()] = 0
     s = np.diag(s)
     new_F = np.dot(np.dot(u, s), v)
+    print "###\nPart 2b\n###\n\n F:\n", new_F, "\n\n"
 
-
-    print "RANK DOWN"
-    print new_F
 
     # 2c
-    # TODO: Draw epipolar lines
-    # draw_epipolar(new_F)
+    # Draw epipolar lines
+    pic_a = draw_epipolar(F.T, read_points(os.path.join(input_dir, PIC_B_2D)), cv2.imread("input/pic_a.jpg"))
+    pic_b = draw_epipolar(F, read_points(os.path.join(input_dir, PIC_A_2D)), cv2.imread("input/pic_b.jpg"))
+
+    cv2.imwrite(os.path.join(output_dir, "ps3-2-c-1.png"), pic_a)
+    cv2.imwrite(os.path.join(output_dir, "ps3-2-c-2.png"), pic_b)
+
+    # cv2.imshow("pic_b", pic_b)
+    # cv2.imshow("pic_a", pic_a)
+    # cv2.waitKey(8000)
 
     # 2d
     """
@@ -369,7 +359,7 @@ def main():
 
     """
     T_a, T_b, F_hat = get_trans_and_F(pts2d_pic_a, pts2d_pic_b)
-
+    print "###\nPart 2d\n###\n\nT_a:\n", T_a, " \n\nT_b:\n", T_b, "\n\nF_hat\n", F_hat
 
     # 2e
     #
@@ -392,7 +382,15 @@ def main():
     #  F=T_b^T * F_hat * T_a
 
     F = np.dot(np.dot(T_b.T, F_hat), T_a)
-    draw_epipolar(F)
+    pic_a = draw_epipolar(F.T, read_points(os.path.join(input_dir, PIC_B_2D)), cv2.imread("input/pic_a.jpg"))
+    pic_b = draw_epipolar(F, read_points(os.path.join(input_dir, PIC_A_2D)), cv2.imread("input/pic_b.jpg"))
+
+    cv2.imwrite(os.path.join(output_dir, "ps3-2-e-1.png"), pic_a)
+    cv2.imwrite(os.path.join(output_dir, "ps3-2-e-2.png"), pic_b)
+
+    # cv2.imshow("pic_b", pic_b)
+    # cv2.imshow("pic_a", pic_a)
+    # cv2.waitKey(8000)
 
 
 if __name__ == '__main__':
