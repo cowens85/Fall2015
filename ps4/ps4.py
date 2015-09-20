@@ -50,14 +50,14 @@ def solve_least_squares(pts3d, pts2d):
     B = np.zeros((2 * N, 1))
 
 
-    for index in range(0, N):
-        u,v = pts2d[index]
-        x, y, z = pts3d[index]
-        A[2 * index] = np.array([x, y, z, 1, 0, 0, 0, 0, -u * x, -u * y, -u * z])
-        B[2 * index] = u
+    for i in range(0, N):
+        u,v = pts2d[i]
+        X, Y, Z = pts3d[i]
+        A[2 * i] = np.array([X, Y, Z, 1, 0, 0, 0, 0, -u * X, -u * Y, -u * Z])
+        B[2 * i] = u
 
-        A[2 * index + 1] = np.array([ 0, 0, 0, 0,x, y, z, 1, -v * x, -v * y, -v * z])
-        B[2 * index + 1] = v
+        A[2 * i + 1] = np.array([ 0, 0, 0, 0,X, Y, Z, 1, -v * X, -v * Y, -v * Z])
+        B[2 * i + 1] = v
 
     m, residuals, rank, singular_values = np.linalg.lstsq(A,B)
 
@@ -85,19 +85,19 @@ def project_points(pts3d, M):
     """
 
     N = (pts3d.shape[0])
-    pts2d_projected = np.zeros((N, 2))
+    pts2d_proj = np.zeros((N, 2))
 
     #tack on a column of ones
     last_col = np.ones((N, 1))
     new_pts = np.concatenate((pts3d, last_col),1)
 
     #loop, dot product with M, normalize, set value in pointa2d
-    for index in range(0, N):
-        homo_proj_pt = np.dot(M, new_pts[index])
-        inhomo_proj = homo_proj_pt / homo_proj_pt[2]
-        pts2d_projected[index] = np.array([inhomo_proj[0], inhomo_proj[1]])
+    for i in range(0, N):
+        homo_proj_pt = np.dot(M, new_pts[i])
+        inhomo_proj_pt = homo_proj_pt / homo_proj_pt[2]
+        pts2d_proj[i] = np.array([inhomo_proj_pt[0], inhomo_proj_pt[1]])
 
-    return pts2d_projected
+    return pts2d_proj
 
 
 def get_residuals(pts2d, pts2d_projected):
@@ -132,42 +132,44 @@ def calibrate_camera(pts3d, pts2d):
 
 
     # NOTE: Use the camera calibration procedure in the problem set
-    k_choices = [12,16,20]
+    k_choices = [12, 16, 20]
     indexes = np.arange(pts3d.shape[0])
 
-    best_m_error = None
-    lowest_avg_residual = None
+    lowest_avg_residual = np.infty
+    bestM, error = None, None
     print "\n###\nPart 1b\n###\n\nAverage Residual per trial K:"
     for k in k_choices:
-        lowest_avg_residual_per_k = None
-        best_m_error_per_k = None
-        for n in range(0,10):
+        lowest_avg_residual_k = np.inf
+        bestM_k, error_k = None, None
+
+        print "k:", k
+        for n in range(10):
             #choose k point indexes
-            all_pt_dexes = random.sample(indexes, k)
+            all_pt_indexes = random.sample(indexes, k)
 
-            #first four points are for testing
-            # test_pt_dexes = all_pt_dexes[:4]
+            proj_pt_indexes = all_pt_indexes[5:]
 
-            #rest are for doing the projection
-            proj_pt_dexes = all_pt_dexes[5:]
+            proj_pts2d = pts2d[proj_pt_indexes]
+            proj_pts3d = pts3d[proj_pt_indexes]
+            M, error = solve_least_squares(proj_pts3d, proj_pts2d)
 
-            proj_pts2d = pts2d[proj_pt_dexes]
-            proj_pts3d = pts3d[proj_pt_dexes]
-            M, error= solve_least_squares(proj_pts3d, proj_pts2d)
+            avg_residual = np.mean(get_residuals(proj_pts2d,project_points(proj_pts3d, M)))
 
-            avg_residual = np.average(get_residuals(proj_pts2d,project_points(proj_pts3d, M)))
+            if avg_residual < lowest_avg_residual_k:
+                lowest_avg_residual_k = avg_residual
+                bestM_k = M
+                error_k = error
 
-            if lowest_avg_residual_per_k is None or avg_residual < lowest_avg_residual_per_k:
-                lowest_avg_residual_per_k = avg_residual
-                best_m_error_per_k = (M,error)
+            print lowest_avg_residual_k
 
-        if lowest_avg_residual is None or lowest_avg_residual_per_k  < lowest_avg_residual:
-            lowest_avg_residual = lowest_avg_residual_per_k
-            best_m_error = best_m_error_per_k
+        if lowest_avg_residual_k < lowest_avg_residual:
+            lowest_avg_residual = lowest_avg_residual_k
+            bestM = bestM_k
+            error = error_k
 
-        print lowest_avg_residual_per_k
+        print ""
 
-    return best_m_error[0], best_m_error[1]
+    return bestM, error
 
 
 def compute_fundamental_matrix(pts2d_a, pts2d_b):
@@ -186,68 +188,67 @@ def compute_fundamental_matrix(pts2d_a, pts2d_b):
     A = np.zeros((N,8))
     B = np.ones((N,1)) * -1
 
-    for dex in range(0, N):
-        u = pts2d_a[dex][0]
-        v = pts2d_a[dex][1]
-        u_prime = pts2d_b[dex][0]
-        v_prime = pts2d_b[dex][1]
+    for i in range(N):
+        u = pts2d_a[i][0]
+        v = pts2d_a[i][1]
+        u_prime = pts2d_b[i][0]
+        v_prime = pts2d_b[i][1]
 
-        A[dex] = np.array([u*u_prime, v*u_prime, u_prime, u*v_prime, v*v_prime, v_prime, u, v])
+        A[i] = np.array([u * u_prime, v * u_prime, u_prime, u * v_prime, v * v_prime, v_prime, u, v])
 
     m, residuals, rank, singular_values = np.linalg.lstsq(A, B)
 
     m_prime = np.zeros((m.shape[0]+1, m.shape[1]))
     m_prime[:-1] = m
     m_prime[-1] = 1
-    F = m_prime.reshape((3, 3))
 
-    return F
+    return m_prime.reshape((3, 3))
 
 def get_trans_and_F(pts2d_a, pts2d_b):
     #
     # Compute T_a
     #
-    T_mean = np.zeros((3, 3), dtype=np.float)
-    np.fill_diagonal(T_mean, 1.0)
-    u_mean = np.mean(pts2d_a[:, 0:1])
-    v_mean = np.mean(pts2d_a[:, 1:2])
-    T_mean[0][2] = -u_mean
-    T_mean[1][2] = -v_mean
+    T_avg = np.zeros((3, 3), dtype=np.float)
+    np.fill_diagonal(T_avg, 1.0)
+    u_avg = np.mean(pts2d_a[:, 0:1])
+    v_avg = np.mean(pts2d_a[:, 1:2])
+    T_avg[0][2] = -u_avg
+    T_avg[1][2] = -v_avg
 
     T_scale = np.zeros((3, 3),dtype=np.float)
-    T_scale[0][0] = 1.0 / np.std(pts2d_a[:, 0:1] - u_mean)
-    T_scale[1][1] = 1.0 / np.std(pts2d_a[:, 1:2] - v_mean)
+    T_scale[0][0] = 1.0 / np.std(pts2d_a[:, 0:1] - u_avg)
+    T_scale[1][1] = 1.0 / np.std(pts2d_a[:, 1:2] - v_avg)
     T_scale[2][2] = 1.0
 
-    T_a = np.dot(T_scale, T_mean)
+    T_a = np.dot(T_scale, T_avg)
 
     new_pts_a = np.concatenate((pts2d_a, np.ones((pts2d_a.shape[0], 1))), 1)
     pts_a_transformed = pts2d_a.copy()
-    for index in range(pts2d_a.shape[0]):
-        pts_a_transformed[index] = np.dot(T_a, new_pts_a[index])[:-1]
+    for i in range(pts2d_a.shape[0]):
+        pts_a_transformed[i] = np.dot(T_a, new_pts_a[i])[:-1]
 
     #
     # Compute T_b
     #
-    T_mean = np.zeros((3, 3), dtype=np.float)
-    np.fill_diagonal(T_mean, 1.0)
-    u_mean = np.mean(pts2d_b[:, 0:1])
-    v_mean = np.mean(pts2d_b[:, 1:2])
-    T_mean[0][2] = -u_mean
-    T_mean[1][2] = -v_mean
+    T_avg = np.zeros((3, 3), dtype=np.float)
+    np.fill_diagonal(T_avg, 1.0)
+    u_avg = np.mean(pts2d_b[:, 0:1])
+    v_avg = np.mean(pts2d_b[:, 1:2])
+    T_avg[0][2] = -u_avg
+    T_avg[1][2] = -v_avg
 
     T_scale = np.zeros((3, 3), dtype=np.float)
-    T_scale[0][0] = 1.0 / np.std(pts2d_b[:, 0:1] - u_mean)
-    T_scale[1][1] = 1.0 / np.std(pts2d_b[:, 1:2] - v_mean)
+    T_scale[0][0] = 1.0 / np.std(pts2d_b[:, 0:1] - u_avg)
+    T_scale[1][1] = 1.0 / np.std(pts2d_b[:, 1:2] - v_avg)
     T_scale[2][2] = 1.0
 
-    T_b = np.dot(T_scale, T_mean)
+    T_b = np.dot(T_scale, T_avg)
 
     new_pts_b = np.concatenate((pts2d_b, np.ones((pts2d_b.shape[0], 1))), 1)
     pts_b_transformed = pts2d_b.copy()
-    for index in range(pts2d_b.shape[0]):
-        tmp = np.dot(T_b, new_pts_b[index])
-        pts_b_transformed[index] = tmp[:-1]
+    for i in range(pts2d_b.shape[0]):
+        tmp = np.dot(T_b, new_pts_b[i])
+        pts_b_transformed[i] = tmp[:-1]
 
     return T_a, T_b, compute_fundamental_matrix(pts_a_transformed, pts_b_transformed)
 
@@ -256,12 +257,13 @@ def get_trans_and_F(pts2d_a, pts2d_b):
 def draw_epipolar(F, pts2d, pic):
     num_row = pic.shape[0]
     num_col = pic.shape[1]
+    color = (255, 0, 0)
 
     last_col = np.ones((pts2d.shape[0], 1))
     new_pts_pic_a = np.concatenate((pts2d, last_col), 1)
 
-    for point in new_pts_pic_a:
-        l_b = np.dot(F, point)
+    for pt in new_pts_pic_a:
+        l_b = np.dot(F, pt)
         l_L = np.cross([0, 0, 1], [0, num_row, 1])
         l_R = np.cross([num_col, 0, 1], [num_col, num_row, 1])
         P_i_L = np.cross(l_b, l_L)
@@ -272,7 +274,7 @@ def draw_epipolar(F, pts2d, pic):
         x2 = int(P_i_R[0] / P_i_R[2])
         y2 = int(P_i_R[1] / P_i_R[2])
 
-        cv2.line(pic, (x1, y1), (x2, y2), (255, 0, 0), 1)
+        cv2.line(pic, (x1, y1), (x2, y2), color, 1)
 
     return pic
 
@@ -359,7 +361,7 @@ def main():
 
     """
     T_a, T_b, F_hat = get_trans_and_F(pts2d_pic_a, pts2d_pic_b)
-    print "###\nPart 2d\n###\n\nT_a:\n", T_a, " \n\nT_b:\n", T_b, "\n\nF_hat\n", F_hat
+    print "###\nPart 2d\n###\n\nT_a:\n", T_a, " \n\nT_b:\n", T_b, "\n\nF_hat\n", F_hat, "\n\n"
 
     # 2e
     #
@@ -382,6 +384,7 @@ def main():
     #  F=T_b^T * F_hat * T_a
 
     F = np.dot(np.dot(T_b.T, F_hat), T_a)
+    print "###\n Part 2e\n###\n\nNew F:\n", F, "\n\n"
     pic_a = draw_epipolar(F.T, read_points(os.path.join(input_dir, PIC_B_2D)), cv2.imread("input/pic_a.jpg"))
     pic_b = draw_epipolar(F, read_points(os.path.join(input_dir, PIC_A_2D)), cv2.imread("input/pic_b.jpg"))
 
