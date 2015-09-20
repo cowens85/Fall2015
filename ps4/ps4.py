@@ -226,7 +226,7 @@ def get_trans_and_F(pts2d_a, pts2d_b):
     new_pts_a = np.concatenate((pts2d_a, np.ones((pts2d_a.shape[0], 1))), 1)
     pts_a_transformed = pts2d_a.copy()
     for index in range(pts2d_a.shape[0]):
-        tmp = np.dot(new_pts_a[index], T_a)
+        tmp = np.dot(T_a, new_pts_a[index])
         print tmp[:-1]
         pts_a_transformed[index] = tmp[:-1]
 
@@ -250,7 +250,7 @@ def get_trans_and_F(pts2d_a, pts2d_b):
     new_pts_b = np.concatenate((pts2d_b, np.ones((pts2d_b.shape[0], 1))), 1)
     pts_b_transformed = pts2d_b.copy()
     for index in range(pts2d_b.shape[0]):
-        tmp = np.dot(new_pts_b[index], T_b)
+        tmp = np.dot(T_b, new_pts_b[index])
         pts_b_transformed[index] = tmp[:-1]
 
     return T_a, T_b, compute_fundamental_matrix(pts_a_transformed, pts_b_transformed)
