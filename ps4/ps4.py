@@ -362,12 +362,7 @@ def main():
     - The matrices Ta, Tb and F [text response]
 
     """
-    T_a, T_b, F = get_trans_and_F(pts2d_pic_a, pts2d_pic_b)
-    draw_epipolar(F)
-
-
-
-
+    T_a, T_b, F_hat = get_trans_and_F(pts2d_pic_a, pts2d_pic_b)
 
 
     # 2e
@@ -389,7 +384,9 @@ def main():
     #  transformation
     #
     #  F=T_b^T * F_hat * T_a
-
+    
+    F = np.dot(np.dot(T_b.T, F_hat), T_a)
+    draw_epipolar(F)
 
 
 if __name__ == '__main__':
