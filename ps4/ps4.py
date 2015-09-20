@@ -244,9 +244,6 @@ def get_trans_and_F(pts2d_a, pts2d_b):
         tmp = np.dot(new_pts_b[index], T_b)
         pts_b_transformed[index] = tmp[:-1]
 
-    print "POINTS!", pts2d_a
-    print "TRANSFORMED!", pts_a_transformed
-
     return T_a, T_b, compute_fundamental_matrix(pts_a_transformed, pts_b_transformed)
 
 
@@ -340,7 +337,7 @@ def main():
     u, s, v = np.linalg.svd(F)
     s[s.argmin()] = 0
     s = np.diag(s)
-    new_F = np.dot(np.dot(u,s),v)
+    new_F = np.dot(np.dot(u, s), v)
 
 
     print "RANK DOWN"
@@ -384,7 +381,7 @@ def main():
     #  transformation
     #
     #  F=T_b^T * F_hat * T_a
-    
+
     F = np.dot(np.dot(T_b.T, F_hat), T_a)
     draw_epipolar(F)
 
