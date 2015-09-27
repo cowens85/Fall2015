@@ -484,23 +484,28 @@ def two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, 
 
     return a_kps, b_kps
 
-def two_b(a_img, a_kps, b_img, b_kps):
+def two_b(a_img, a_kps, b_img, b_kps, a_run="foo"):
     a_descs = get_descriptors(a_img, a_kps)
     b_descs = get_descriptors(b_img, b_kps)
 
     matches = match_descriptors(a_descs, b_descs)
-    draw_matches(a_img, b_img, a_kps, b_kps, matches)
+    match_img = draw_matches(a_img, b_img, a_kps, b_kps, matches)
+
+    if a_run == "transA":
+        write_image(match_img, "ps5-2-b-1.png")
+    if a_run == "simA":
+        write_image(match_img, "ps5-2-b-2.png")
 
     return a_descs, b_descs, matches
 
 # Driver code
 def main():
-    # image_pairs = np.array([["transA", "transB"]])
-    image_pairs = np.array([["transA", "transB"], ["simA", "simB"]])
+    image_pairs = np.array([["transA", "transB"]])
+    # image_pairs = np.array([["transA", "transB"], ["simA", "simB"]])
 
     for img_pair in image_pairs:
-        a_run=img_pair[0]
-        b_run=img_pair[1]
+        a_run = img_pair[0]
+        b_run = img_pair[1]
 
         a_img, a_Ix, a_Iy = one_a(a_run + ".jpg", a_run)
         b_img, b_Ix, b_Iy = one_a(b_run + ".jpg", b_run)
@@ -515,7 +520,7 @@ def main():
 
         a_descs, b_descs, matches = two_b(a_img, a_kps, b_img, b_kps)
 
-        
+
 
 
 
