@@ -2,6 +2,8 @@
 
 import numpy as np
 import cv2
+import scipy as sp
+import scipy.signal as sig
 
 import os
 
@@ -63,11 +65,11 @@ def gradientX(image):
     rows = shape[0]
     cols = shape[1]
 
-    grad_x = np.zeros([rows,cols-1], dtype=np.float)
+    grad_x = np.zeros([rows,cols], dtype=np.float)
 
     for row in range(rows):
         for col in range(cols-1):
-            grad_x[row][col] = abs(image[row][col+1] - image[row][col])
+            grad_x[row][col] = image[row][col+1] - image[row][col]
 
     return grad_x
 
@@ -86,11 +88,11 @@ def gradientY(image):
     rows = shape[0]
     cols = shape[1]
 
-    grad_y = np.zeros([rows-1,cols], dtype=np.float)
+    grad_y = np.zeros([rows,cols], dtype=np.float)
 
     for row in range(rows-1):
         for col in range(cols):
-            grad_y[row][col] = abs(image[row+1][col] - image[row][col])
+            grad_y[row][col] = image[row+1][col] - image[row][col]
 
     return grad_y
 
@@ -134,17 +136,22 @@ def harris_response(Ix, Iy, kernel, alpha):
     kernel = np.array([0.25 - var / 2.0, 0.25, var,
                      0.25, 0.25 - var /2.0])
     kernel = np.outer(kernel, kernel)
+    # M = "something"
+    #
+    # R = np.linalg.det(M) - alpha * (np.sum(np.diag(M))**2)
 
     #compute components of the structure tensor
-    Wxx = np.convolve(Ix * Ix,kernel, mode='same')
-    Wxy = np.convolve(Ix * Iy,kernel, mode='same')
-    Wyy = np.convolve(Iy * Iy,kernel, mode='same')
+    w_xx = sig.convolve2d(Ix * Ix,kernel, mode='same')
+    # Wxy = sig.convolve2d(Ix * Iy,kernel, mode='same')
+    w_yy = sig.convolve2d(Iy * Iy,kernel, mode='same')
 
-    #determinant and trace
-    det = Wxx*Wyy - Wxy**2
-    trace = Wxx + Wyy
+    R = w_xx *w_yy - alpha* ((w_xx - w_yy)**2)
 
-    R = det - (alpha * trace)
+    # # determinant and trace
+    # det = w_xx*w_yy - Wxy**2
+    # trace = w_xx + w_yy
+    #
+    # R = det / trace
 
     return R
 
@@ -164,13 +171,18 @@ def find_corners(R, threshold, radius):
     """
 
     # TODO: Your code here
+
+    # R = R[R < threshold] = 0
+
+
+
     #find top corner candidates above a threshold
     corner_threshold = max(R.ravel()) * threshold
     R_t = (R > corner_threshold) * 1
 
     #get coordinates of candidates
     candidates = R_t.nonzero()
-    corner_coords = [ (candidates[0][c],candidates[1][c]) for c in range(len(candidates[0]))]
+    corner_coords = [(candidates[0][c],candidates[1][c]) for c in range(len(candidates[0]))]
     #...and their values
     candidate_values = [R[c[0]][c[1]] for c in corner_coords]
 
@@ -190,6 +202,8 @@ def find_corners(R, threshold, radius):
 
     return filtered_corner_coords
 
+    # return corners
+
 
 def draw_corners(image, corners):
     """Draw corners on (a copy of) given image.
@@ -203,9 +217,12 @@ def draw_corners(image, corners):
     -------
         image_out: copy of image with corners drawn on it, color (BGR), uint8, values in [0, 255]
     """
-    image_out = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-    for x, y in corners:
-        cv2.circle(image_out, (x, y),1,(255,0,0))
+    max = image.max()
+    image_out = image.copy()
+    image_out *= 255.0/max
+    image_out = cv2.cvtColor(image_out.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+    for y, x in corners:
+        cv2.circle(image_out, (x, y),1,(0, 255, 0))
 
     return image_out
 
@@ -366,36 +383,37 @@ def main():
     # TODO: Similarly for transB, simA and simB (you can write a utility function for grouping operations on each image)
 
     # 1c
-    transA_corners = find_corners(transA_R, 0.0, 2.5)  # TODO: implement this, tweak parameters till you get good corners
+    transA_corners = find_corners(transA_R, 0.15, 2.5)  # TODO: implement this, tweak parameters till you get good corners
     transA_out = draw_corners(transA, transA_corners)  # TODO: implement this
     # TODO: Write image to file
+    cv2.imwrite(os.path.join(output_dir, "ps5-1-c-1.png"), transA_out)
 
     # TODO: Similarly for transB, simA and simB (write a utility function if you want)
 
     # 2a
-    transA_angle = gradient_angle(transA_Ix, transA_Iy)  # TODO: implement this
-    transA_kp = get_keypoints(transA_corners, transA_R, transA_angle, _size=5.0, _octave=0)  # TODO: implement this, update parameters
-    # TODO: Draw keypoints on transA
-    # TODO: Similarly, find keypoints for transB and draw them
-    # TODO: Combine transA and transB images (with keypoints drawn) using make_image_pair() and write to file
-
-    # TODO: Ditto for (simA, simB) pair
-
-    # 2b
-    transA_desc = get_descriptors(transA, transA_kp)  # TODO: implement this
-    # TODO: Similarly get transB_desc
-    # TODO: Find matches: trans_matches = match_descriptors(transA_desc, transB_desc)
-    # TODO: Draw matches and write to file: draw_matches(transA, transB, transA_kp, transB_kp, trans_matches)
-
-    # TODO: Ditto for (simA, simB) pair (may have to vary some parameters along the way?)
-
-    # 3a
-    # TODO: Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
-
-    # 3b
-    # TODO: Compute similarity transform for (simA, simB) pair, draw biggest consensus set
-
-    # Extra credit: 3c, 3d, 3e
+    # transA_angle = gradient_angle(transA_Ix, transA_Iy)  # TODO: implement this
+    # transA_kp = get_keypoints(transA_corners, transA_R, transA_angle, _size=5.0, _octave=0)  # TODO: implement this, update parameters
+    # # TODO: Draw keypoints on transA
+    # # TODO: Similarly, find keypoints for transB and draw them
+    # # TODO: Combine transA and transB images (with keypoints drawn) using make_image_pair() and write to file
+    #
+    # # TODO: Ditto for (simA, simB) pair
+    #
+    # # 2b
+    # transA_desc = get_descriptors(transA, transA_kp)  # TODO: implement this
+    # # TODO: Similarly get transB_desc
+    # # TODO: Find matches: trans_matches = match_descriptors(transA_desc, transB_desc)
+    # # TODO: Draw matches and write to file: draw_matches(transA, transB, transA_kp, transB_kp, trans_matches)
+    #
+    # # TODO: Ditto for (simA, simB) pair (may have to vary some parameters along the way?)
+    #
+    # # 3a
+    # # TODO: Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
+    #
+    # # 3b
+    # # TODO: Compute similarity transform for (simA, simB) pair, draw biggest consensus set
+    #
+    # # Extra credit: 3c, 3d, 3e
 
 
 if __name__ == "__main__":
