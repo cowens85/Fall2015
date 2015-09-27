@@ -202,8 +202,6 @@ def find_corners(R, threshold, radius):
 
     return filtered_corner_coords
 
-    # return corners
-
 
 def draw_corners(image, corners):
     """Draw corners on (a copy of) given image.
@@ -222,7 +220,7 @@ def draw_corners(image, corners):
     image_out *= 255.0/max
     image_out = cv2.cvtColor(image_out.astype(np.uint8), cv2.COLOR_GRAY2BGR)
     for y, x in corners:
-        cv2.circle(image_out, (x, y),1,(0, 255, 0))
+        cv2.circle(image_out, (x, y),2,(0, 255, 0))
 
     return image_out
 
@@ -243,8 +241,8 @@ def gradient_angle(Ix, Iy):
     # TODO: Your code here
     # Note: +ve X axis points to the right (0 degrees), +ve Y axis points down (90 degrees)
     angle = np.zeros(Ix.shape)
-    for row in Ix.shape[0]:
-        for col in Ix.shape[1]:
+    for row in range(Ix.shape[0]):
+        for col in range(Ix.shape[1]):
             angle[row][col] = cv2.fastAtan2(Iy[row][col], Ix[row][col])
     return angle
 
@@ -367,7 +365,7 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
 def main():
     # Note: Comment out parts of this code as necessary
 
-    # 1a
+    """ 1a """
     transA = cv2.imread(os.path.join(input_dir, "transA.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float_) / 255.0
     transA_Ix = gradientX(transA)  # TODO: implement this
     transA_Iy = gradientY(transA)  # TODO: implement this
@@ -376,13 +374,13 @@ def main():
     
     # TODO: Similarly for simA.jpg
 
-    # 1b
+    """ 1b """
     transA_R = harris_response(transA_Ix, transA_Iy, np.ones((3, 3), dtype=np.float_) / 9.0, 0.04)  # TODO: implement this, tweak parameters for best response
     # TODO: Scale/type-cast response map and write to file
 
     # TODO: Similarly for transB, simA and simB (you can write a utility function for grouping operations on each image)
 
-    # 1c
+    """ 1c """
     transA_corners = find_corners(transA_R, 0.15, 2.5)  # TODO: implement this, tweak parameters till you get good corners
     transA_out = draw_corners(transA, transA_corners)  # TODO: implement this
     # TODO: Write image to file
@@ -390,16 +388,16 @@ def main():
 
     # TODO: Similarly for transB, simA and simB (write a utility function if you want)
 
-    # 2a
-    # transA_angle = gradient_angle(transA_Ix, transA_Iy)  # TODO: implement this
-    # transA_kp = get_keypoints(transA_corners, transA_R, transA_angle, _size=5.0, _octave=0)  # TODO: implement this, update parameters
-    # # TODO: Draw keypoints on transA
-    # # TODO: Similarly, find keypoints for transB and draw them
-    # # TODO: Combine transA and transB images (with keypoints drawn) using make_image_pair() and write to file
-    #
-    # # TODO: Ditto for (simA, simB) pair
-    #
-    # # 2b
+    """ 2a """
+    transA_angle = gradient_angle(transA_Ix, transA_Iy)
+    transA_kp = get_keypoints(transA_corners, transA_R, transA_angle, _size=5.0, _octave=0)  # TODO: implement this, update parameters
+    # TODO: Draw keypoints on transA
+    # TODO: Similarly, find keypoints for transB and draw them
+    # TODO: Combine transA and transB images (with keypoints drawn) using make_image_pair() and write to file
+
+    # TODO: Ditto for (simA, simB) pair
+
+    """ 2b """
     # transA_desc = get_descriptors(transA, transA_kp)  # TODO: implement this
     # # TODO: Similarly get transB_desc
     # # TODO: Find matches: trans_matches = match_descriptors(transA_desc, transB_desc)
@@ -407,13 +405,13 @@ def main():
     #
     # # TODO: Ditto for (simA, simB) pair (may have to vary some parameters along the way?)
     #
-    # # 3a
+    # """ 3a """
     # # TODO: Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
     #
-    # # 3b
+    # """ 3b """
     # # TODO: Compute similarity transform for (simA, simB) pair, draw biggest consensus set
-    #
-    # # Extra credit: 3c, 3d, 3e
+
+    # Extra credit: 3c, 3d, 3e
 
 
 if __name__ == "__main__":
