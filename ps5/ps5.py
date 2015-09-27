@@ -215,10 +215,7 @@ def draw_corners(image, corners):
     -------
         image_out: copy of image with corners drawn on it, color (BGR), uint8, values in [0, 255]
     """
-    max = image.max()
-    image_out = image.copy()
-    image_out *= 255.0/max
-    image_out = cv2.cvtColor(image_out.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+    image_out = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
     for y, x in corners:
         cv2.circle(image_out, (x, y),2,(0, 255, 0))
 
@@ -262,8 +259,13 @@ def get_keypoints(points, R, angle, _size, _octave=0):
         keypoints: a sequence (list) of cv2.KeyPoint objects
     """
 
-    # TODO: Your code here
     # Note: You should be able to plot the keypoints using cv2.drawKeypoints() in OpenCV 2.4.9+
+    keypoints = []
+    for i in range(len(points)):
+        point = points[i]
+        y, x = point
+        keypoints.append(cv2.KeyPoint(x=x, y=y, _size=_size, _angle=angle[y][x], _response=R[y][x], _octave=_octave))
+
     return keypoints
 
 
@@ -278,10 +280,9 @@ def get_descriptors(image, keypoints):
     -------
         descriptors: 2D NumPy array of shape (len(keypoints), 128)
     """
-
-    # TODO: Your code here
     # Note: You can use OpenCV's SIFT.compute() method to extract descriptors, or write your own!
-    return descriptors
+    sift = cv2.SIFT()
+    return sift.compute(image, keypoints)[1]
 
 
 def match_descriptors(desc1, desc2):
@@ -299,6 +300,11 @@ def match_descriptors(desc1, desc2):
 
     # TODO: Your code here
     # Note: You can use OpenCV's descriptor matchers, or roll your own!
+    bf_matcher = cv2.BFMatcher(normType=cv2.HAMMING_NORM_TYPE, crossCheck=True)
+
+    # Compute the matches between both images.
+    descriptors = bf_matcher.match(desc1, desc2)
+
     return descriptors
 
 
@@ -320,7 +326,34 @@ def draw_matches(image1, image2, kp1, kp2, matches):
 
     # TODO: Your code here
     # Note: DO NOT use OpenCV's match drawing function(s)! Write your own :)
-    return image_out
+    # Compute number of channels.
+    num_channels = 1
+    if len(image1.shape) == 3:
+        num_channels = image1.shape[2]
+    # Separation between images.
+    margin = 10
+    # Create an array that will fit both images (with a margin of 10 to separate
+    # the two images)
+    joined_image = np.zeros((max(image1.shape[0], image2.shape[0]), image1.shape[1] + image2.shape[1] + margin, 3))
+    if num_channels == 1:
+        for channel_idx in range(3):
+            joined_image[:image1.shape[0], :image1.shape[1], channel_idx] = image1
+            joined_image[:image2.shape[0], image1.shape[1] + margin:, channel_idx] = image2
+    else:
+        joined_image[:image1.shape[0], :image1.shape[1]] = image1
+        joined_image[:image2.shape[0], image1.shape[1] + margin:] = image2
+
+    for match in matches:
+        image_1_point = (int(kp1[match.queryIdx].pt[0]),
+                         int(kp1[match.queryIdx].pt[1]))
+        image_2_point = (int(kp2[match.trainIdx].pt[0] + image1.shape[1] + margin),
+                       int(kp2[match.trainIdx].pt[1]))
+
+        cv2.circle(joined_image, image_1_point, 5, (0, 0, 255), thickness=-1)
+        cv2.circle(joined_image, image_2_point, 5, (0, 255, 0), thickness=-1)
+        cv2.line(joined_image, image_1_point, image_2_point, (255, 0, 0), thickness=3)
+
+    return joined_image
 
 
 def compute_translation_RANSAC(kp1, kp2, matches):
@@ -360,58 +393,184 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
     # TODO: Your code here
     return transform
 
+def scale_to_img(matrix):
+    max = matrix.max()
+    matrix *= 255.0/max
+    return matrix.astype(np.uint8)
 
-# Driver code
-def main():
-    # Note: Comment out parts of this code as necessary
+def write_image(image, name, scale=False):
+    if scale:
+        image = scale_to_img(image)
+    cv2.imwrite(os.path.join(output_dir, name), image)
+    return image
 
-    """ 1a """
-    transA = cv2.imread(os.path.join(input_dir, "transA.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float_) / 255.0
-    transA_Ix = gradientX(transA)  # TODO: implement this
-    transA_Iy = gradientY(transA)  # TODO: implement this
-    transA_pair = make_image_pair(transA_Ix, transA_Iy)  # TODO: implement this
-    cv2.imwrite(os.path.join(output_dir, "ps5-1-a-1.png"), transA_pair)  # Note: you may have to scale/type-cast image before writing
-    
-    # TODO: Similarly for simA.jpg
+""" 1a """
+def one_a(img_name, run="foo"):
+    img = cv2.imread(os.path.join(input_dir, img_name), cv2.IMREAD_GRAYSCALE).astype(np.float_) / 255.0
+    Ix = gradientX(img)
+    Iy = gradientY(img)
+    pair = make_image_pair(Ix, Iy)
 
-    """ 1b """
-    transA_R = harris_response(transA_Ix, transA_Iy, np.ones((3, 3), dtype=np.float_) / 9.0, 0.04)  # TODO: implement this, tweak parameters for best response
-    # TODO: Scale/type-cast response map and write to file
+    if run == "transA":
+        write_image(pair, "ps5-1-a-1.png", scale=True)
+    elif run == "simA":
+        write_image(pair, "ps5-1-a-2.png", scale=True)
 
-    # TODO: Similarly for transB, simA and simB (you can write a utility function for grouping operations on each image)
+    return img, Ix, Iy
 
-    """ 1c """
-    transA_corners = find_corners(transA_R, 0.15, 2.5)  # TODO: implement this, tweak parameters till you get good corners
-    transA_out = draw_corners(transA, transA_corners)  # TODO: implement this
-    # TODO: Write image to file
-    cv2.imwrite(os.path.join(output_dir, "ps5-1-c-1.png"), transA_out)
+"""
+1b
 
-    # TODO: Similarly for transB, simA and simB (write a utility function if you want)
+transA, transB, simA and simB
 
-    """ 2a """
-    transA_angle = gradient_angle(transA_Ix, transA_Iy)
-    transA_kp = get_keypoints(transA_corners, transA_R, transA_angle, _size=5.0, _octave=0)  # TODO: implement this, update parameters
+"""
+def one_b(Ix, Iy, run="foo"):
+
+    R = harris_response(Ix, Iy, np.ones((3, 3), dtype=np.float) / 9.0, 0.04)
+
+    # Scale/type-cast response map and write to file
+    if run == "transA":
+        write_image(R, "ps5-1-b-1.png", scale=True)
+    elif run == "transB":
+        write_image(R, "ps5-1-b-2.png", scale=True)
+    elif run == "simA":
+        write_image(R, "ps5-1-b-3.png", scale=True)
+    elif run == "simB":
+        write_image(R, "ps5-1-b-4.png", scale=True)
+
+    return R
+
+"""
+1c
+
+transA, transB, simA and simB
+
+"""
+def one_c(R, img, run="foo"):
+    corners = find_corners(R, 0.15, 2.5)
+    img_out = draw_corners(scale_to_img(img), corners)
+
+    if run == "transA":
+        write_image(img_out, "ps5-1-c-1.png", scale=True)
+    elif run == "transB":
+        write_image(img_out, "ps5-1-c-2.png", scale=True)
+    elif run == "simA":
+        write_image(img_out, "ps5-1-c-3.png", scale=True)
+    elif run == "simB":
+        write_image(img_out, "ps5-1-c-4.png", scale=True)
+
+    return corners
+
+"""
+2a
+
+transA, transB and simA, simB
+
+"""
+def two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run="foo", b_run="foo", _size=5.0, _octave=0):
+    a_angle = gradient_angle(a_Ix, a_Iy)
+    a_kps = get_keypoints(a_corners, a_R, a_angle, _size, _octave)
+
     # TODO: Draw keypoints on transA
+
+    b_angle = gradient_angle(b_Ix, b_Iy)
+    b_kps = get_keypoints(b_corners, b_R, b_angle, _size, _octave)
+
     # TODO: Similarly, find keypoints for transB and draw them
     # TODO: Combine transA and transB images (with keypoints drawn) using make_image_pair() and write to file
+    # make_image_pair(imgA, imgB)
 
     # TODO: Ditto for (simA, simB) pair
 
-    """ 2b """
-    # transA_desc = get_descriptors(transA, transA_kp)  # TODO: implement this
-    # # TODO: Similarly get transB_desc
-    # # TODO: Find matches: trans_matches = match_descriptors(transA_desc, transB_desc)
-    # # TODO: Draw matches and write to file: draw_matches(transA, transB, transA_kp, transB_kp, trans_matches)
-    #
-    # # TODO: Ditto for (simA, simB) pair (may have to vary some parameters along the way?)
-    #
-    # """ 3a """
-    # # TODO: Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
-    #
-    # """ 3b """
-    # # TODO: Compute similarity transform for (simA, simB) pair, draw biggest consensus set
+    return a_kps, b_kps
 
-    # Extra credit: 3c, 3d, 3e
+def two_b(a_img, a_kps, b_img, b_kps):
+    a_descs = get_descriptors(a_img, a_kps)
+    b_descs = get_descriptors(b_img, b_kps)
+
+    matches = match_descriptors(a_descs, b_descs)
+    draw_matches(a_img, b_img, a_kps, b_kps, matches)
+
+    return a_descs, b_descs, matches
+
+# Driver code
+def main():
+    # image_pairs = np.array([["transA", "transB"]])
+    image_pairs = np.array([["transA", "transB"], ["simA", "simB"]])
+
+    for img_pair in image_pairs:
+        a_run=img_pair[0]
+        b_run=img_pair[1]
+
+        a_img, a_Ix, a_Iy = one_a(a_run + ".jpg", a_run)
+        b_img, b_Ix, b_Iy = one_a(b_run + ".jpg", b_run)
+
+        a_R = one_b(a_Ix, a_Iy, a_run)
+        b_R = one_b(b_Ix, b_Iy, b_run)
+
+        a_corners = one_c(a_R, a_img, a_run)
+        b_corners = one_c(b_R, b_img, b_run)
+
+        a_kps, b_kps = two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run=a_run, b_run=b_run)
+
+        a_descs, b_descs, matches = two_b(a_img, a_kps, b_img, b_kps)
+
+        
+
+
+
+# def main():
+#     # Note: Comment out parts of this code as necessary
+#
+#     """ 1a """
+#     transA = cv2.imread(os.path.join(input_dir, "transA.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float_) / 255.0
+#     transA_Ix = gradientX(transA)  # TODO: implement this
+#     transA_Iy = gradientY(transA)  # TODO: implement this
+#     transA_pair = make_image_pair(transA_Ix, transA_Iy)
+#     write_image(transA_pair, "ps5-1-a-1.png", scale = True)
+#
+#     # TODO: Similarly for simA.jpg
+#
+#     """ 1b """
+#     transA_R = harris_response(transA_Ix, transA_Iy, np.ones((3, 3), dtype=np.float) / 9.0, 0.04)
+#     # TODO: Scale/type-cast response map and write to file
+#     write_image(transA_R, "ps5-1-b-1.png", scale=True)
+#
+#     # TODO: Similarly for transB, simA and simB (you can write a utility function for grouping operations on each image)
+#
+#     """ 1c """
+#     transA_corners = find_corners(transA_R, 0.15, 2.5)  # TODO: implement this, tweak parameters till you get good corners
+#     transA_out = draw_corners(scale_to_img(transA), transA_corners)  # TODO: implement this
+#     # TODO: Write image to file
+#     write_image(transA_out, "ps5-1-c-1.png")
+#
+#     # TODO: Similarly for transB, simA and simB (write a utility function if you want)
+#
+#     """ 2a """
+#     transA_angle = gradient_angle(transA_Ix, transA_Iy)
+#     transA_kp = get_keypoints(transA_corners, transA_R, transA_angle, _size=5.0, _octave=0)  # TODO: implement this, update parameters
+#     # TODO: Draw keypoints on transA
+#
+#     # TODO: Similarly, find keypoints for transB and draw them
+#     # TODO: Combine transA and transB images (with keypoints drawn) using make_image_pair() and write to file
+#
+#     # TODO: Ditto for (simA, simB) pair
+#
+#     # """ 2b """
+#     # transA_desc = get_descriptors(transA, transA_kp)  # TODO: implement this
+#     # # TODO: Similarly get transB_desc
+#     # # TODO: Find matches: trans_matches = match_descriptors(transA_desc, transB_desc)
+#     # # TODO: Draw matches and write to file: draw_matches(transA, transB, transA_kp, transB_kp, trans_matches)
+#     #
+#     # # TODO: Ditto for (simA, simB) pair (may have to vary some parameters along the way?)
+#     #
+#     # """ 3a """
+#     # # TODO: Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
+#     #
+#     # """ 3b """
+#     # # TODO: Compute similarity transform for (simA, simB) pair, draw biggest consensus set
+#
+#     # Extra credit: 3c, 3d, 3e
 
 
 if __name__ == "__main__":
