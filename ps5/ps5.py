@@ -9,6 +9,43 @@ import os
 input_dir = "input"
 output_dir = "output"
 
+"""
+    Faster/better gradients?
+    [START]
+"""
+def gauss_derivative_kernels(size, size_y=None):
+    """ returns x and y derivatives of a 2D
+        gauss kernel array for convolutions """
+    size = int(size)
+    if not size_y:
+        size_y = size
+    else:
+        size_y = int(size_y)
+    y, x = np.mgrid[-size:size+1, -size_y:size_y+1]
+
+    #x and y derivatives of a 2D gaussian with standard dev half of size
+    # (ignore scale factor)
+    gx = - x * np.exp(-(x**2/float((0.5*size)**2)+y**2/float((0.5*size_y)**2)))
+    gy = - y * np.exp(-(x**2/float((0.5*size)**2)+y**2/float((0.5*size_y)**2)))
+
+    return gx,gy
+
+def gauss_derivatives(im, n, ny=None):
+    """ returns x and y derivatives of an image using gaussian
+        derivative filters of size n. The optional argument
+        ny allows for a different size in the y direction."""
+
+    gx, gy = gauss_derivative_kernels(n, size_y=ny)
+
+    imx = np.convolve(im, gx, mode='same')
+    imy = np.convolve(im, gy, mode='same')
+
+    return imx,imy
+
+"""
+    Faster/better gradients?
+    [START]
+"""
 
 # Assignment code
 def gradientX(image):
@@ -22,10 +59,17 @@ def gradientX(image):
     -------
         Ix: image gradient in X direction, values in [-1.0, 1.0]
     """
+    shape = image.shape
+    rows = shape[0]
+    cols = shape[1]
 
-    # TODO: Your code here
-    return Ix
+    grad_x = np.zeros([rows,cols-1], dtype=np.float)
 
+    for row in range(rows):
+        for col in range(cols-1):
+            grad_x[row][col] = abs(image[row][col+1] - image[row][col])
+
+    return grad_x
 
 def gradientY(image):
     """Compute image gradient in Y direction.
@@ -38,9 +82,17 @@ def gradientY(image):
     -------
         Iy: image gradient in Y direction, values in [-1.0, 1.0]
     """
+    shape = image.shape
+    rows = shape[0]
+    cols = shape[1]
 
-    # TODO: Your code here
-    return Iy
+    grad_y = np.zeros([rows-1,cols], dtype=np.float)
+
+    for row in range(rows-1):
+        for col in range(cols):
+            grad_y[row][col] = abs(image[row+1][col] - image[row][col])
+
+    return grad_y
 
 
 def make_image_pair(image1, image2):
@@ -56,8 +108,8 @@ def make_image_pair(image1, image2):
         image_pair: combination of both images, side-by-side, same type
     """
 
-    # TODO: Your code here
-    return image_pair
+    # TODO: make sure this works for gray scale
+    return np.concatenate((image1, image2), axis=1)
 
 
 def harris_response(Ix, Iy, kernel, alpha):
@@ -77,6 +129,23 @@ def harris_response(Ix, Iy, kernel, alpha):
 
     # TODO: Your code here
     # Note: Define any other parameters you need locally or as keyword arguments
+    #kernel for blurring
+    var = 0.4
+    kernel = np.array([0.25 - var / 2.0, 0.25, var,
+                     0.25, 0.25 - var /2.0])
+    kernel = np.outer(kernel, kernel)
+
+    #compute components of the structure tensor
+    Wxx = np.convolve(Ix * Ix,kernel, mode='same')
+    Wxy = np.convolve(Ix * Iy,kernel, mode='same')
+    Wyy = np.convolve(Iy * Iy,kernel, mode='same')
+
+    #determinant and trace
+    det = Wxx*Wyy - Wxy**2
+    trace = Wxx + Wyy
+
+    R = det - (alpha * trace)
+
     return R
 
 
@@ -95,7 +164,31 @@ def find_corners(R, threshold, radius):
     """
 
     # TODO: Your code here
-    return corners
+    #find top corner candidates above a threshold
+    corner_threshold = max(R.ravel()) * threshold
+    R_t = (R > corner_threshold) * 1
+
+    #get coordinates of candidates
+    candidates = R_t.nonzero()
+    corner_coords = [ (candidates[0][c],candidates[1][c]) for c in range(len(candidates[0]))]
+    #...and their values
+    candidate_values = [R[c[0]][c[1]] for c in corner_coords]
+
+    #sort candidates
+    index = np.argsort(candidate_values)
+
+    #store allowed point locations in array
+    allowed_locations = np.zeros(R.shape)
+    allowed_locations[radius:-radius,radius:-radius] = 1
+
+    #select the best points taking min_distance into account
+    filtered_corner_coords = []
+    for i in index:
+        if allowed_locations[corner_coords[i][0]][corner_coords[i][1]] == 1:
+            filtered_corner_coords.append(corner_coords[i])
+            allowed_locations[(corner_coords[i][0] - radius):(corner_coords[i][0] + radius), (corner_coords[i][1] - radius):(corner_coords[i][1] + radius)] = 0
+
+    return filtered_corner_coords
 
 
 def draw_corners(image, corners):
@@ -110,8 +203,10 @@ def draw_corners(image, corners):
     -------
         image_out: copy of image with corners drawn on it, color (BGR), uint8, values in [0, 255]
     """
+    image_out = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    for x, y in corners:
+        cv2.circle(image_out, (x, y),1,(255,0,0))
 
-    # TODO: Your code here
     return image_out
 
 
@@ -130,8 +225,11 @@ def gradient_angle(Ix, Iy):
 
     # TODO: Your code here
     # Note: +ve X axis points to the right (0 degrees), +ve Y axis points down (90 degrees)
+    angle = np.zeros(Ix.shape)
+    for row in Ix.shape[0]:
+        for col in Ix.shape[1]:
+            angle[row][col] = cv2.fastAtan2(Iy[row][col], Ix[row][col])
     return angle
-
 
 def get_keypoints(points, R, angle, _size, _octave=0):
     """Create OpenCV KeyPoint objects given interest points, response and angle images.
@@ -262,7 +360,7 @@ def main():
     # TODO: Similarly for simA.jpg
 
     # 1b
-    transA_R = harris_response(transA_Ix, trans_Iy, np.ones((3, 3), dtype=np.float_) / 9.0, 0.04)  # TODO: implement this, tweak parameters for best response
+    transA_R = harris_response(transA_Ix, transA_Iy, np.ones((3, 3), dtype=np.float_) / 9.0, 0.04)  # TODO: implement this, tweak parameters for best response
     # TODO: Scale/type-cast response map and write to file
 
     # TODO: Similarly for transB, simA and simB (you can write a utility function for grouping operations on each image)
