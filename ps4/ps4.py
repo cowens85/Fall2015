@@ -142,7 +142,8 @@ def calibrate_camera(pts3d, pts2d):
         lowest_avg_residual_k = np.inf
         bestM_k, error_k = None, None
 
-        print "k:", k
+        # subtract 4 due to the test points
+        print "k:", k - 4
         for n in range(10):
             #choose k point indexes
             all_pt_indexes = random.sample(indexes, k)
@@ -152,6 +153,10 @@ def calibrate_camera(pts3d, pts2d):
             proj_pts2d = pts2d[proj_pt_indexes]
             proj_pts3d = pts3d[proj_pt_indexes]
             M, error = solve_least_squares(proj_pts3d, proj_pts2d)
+
+            proj_pt_test_indexes = all_pt_indexes[:4]
+            proj_pts2d = pts2d[proj_pt_test_indexes]
+            proj_pts3d = pts3d[proj_pt_test_indexes]
 
             avg_residual = np.mean(get_residuals(proj_pts2d,project_points(proj_pts3d, M)))
 
