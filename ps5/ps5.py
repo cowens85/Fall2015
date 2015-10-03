@@ -170,8 +170,6 @@ def find_corners(R, threshold, radius):
         corners: peaks found in response map R, as a sequence (list) of (x, y) coordinates
     """
 
-    # TODO: Your code here
-
     # R = R[R < threshold] = 0
 
 
@@ -187,20 +185,20 @@ def find_corners(R, threshold, radius):
     candidate_values = [R[c[0]][c[1]] for c in corner_coords]
 
     #sort candidates
-    index = np.argsort(candidate_values)
+    # index = np.argsort(candidate_values)
 
-    #store allowed point locations in array
-    allowed_locations = np.zeros(R.shape)
-    allowed_locations[radius:-radius,radius:-radius] = 1
+    # #store allowed point locations in array
+    # allowed_locations = np.zeros(R.shape)
+    # allowed_locations[radius:-radius,radius:-radius] = 1
+    #
+    # #select the best points taking min_distance into account
+    # filtered_corner_coords = []
+    # for i in index:
+    #     if allowed_locations[corner_coords[i][0]][corner_coords[i][1]] == 1:
+    #         filtered_corner_coords.append(corner_coords[i])
+    #         allowed_locations[(corner_coords[i][0] - radius):(corner_coords[i][0] + radius), (corner_coords[i][1] - radius):(corner_coords[i][1] + radius)] = 0
 
-    #select the best points taking min_distance into account
-    filtered_corner_coords = []
-    for i in index:
-        if allowed_locations[corner_coords[i][0]][corner_coords[i][1]] == 1:
-            filtered_corner_coords.append(corner_coords[i])
-            allowed_locations[(corner_coords[i][0] - radius):(corner_coords[i][0] + radius), (corner_coords[i][1] - radius):(corner_coords[i][1] + radius)] = 0
-
-    return filtered_corner_coords
+    return corner_coords
 
 
 def draw_corners(image, corners):
@@ -237,11 +235,12 @@ def gradient_angle(Ix, Iy):
 
     # TODO: Your code here
     # Note: +ve X axis points to the right (0 degrees), +ve Y axis points down (90 degrees)
-    angle = np.zeros(Ix.shape)
-    for row in range(Ix.shape[0]):
-        for col in range(Ix.shape[1]):
-            angle[row][col] = cv2.fastAtan2(Iy[row][col], Ix[row][col])
-    return angle
+    # angle = np.zeros(Ix.shape)
+    # for row in range(Ix.shape[0]):
+    #     for col in range(Ix.shape[1]):
+    #         angle[row][col] = cv2.fastAtan2(Iy[row][col], Ix[row][col])
+
+    return np.degrees(np.arctan2(Ix, Iy))
 
 def get_keypoints(points, R, angle, _size, _octave=0):
     """Create OpenCV KeyPoint objects given interest points, response and angle images.
@@ -282,7 +281,7 @@ def get_descriptors(image, keypoints):
     """
     # Note: You can use OpenCV's SIFT.compute() method to extract descriptors, or write your own!
     sift = cv2.SIFT()
-    return sift.compute(image, keypoints)[1]
+    return sift.compute(image.astype(np.uint8), keypoints)[1]
 
 
 def match_descriptors(desc1, desc2):
@@ -298,14 +297,13 @@ def match_descriptors(desc1, desc2):
         matches: a sequence (list) of cv2.DMatch objects containing corresponding descriptor indices
     """
 
-    # TODO: Your code here
     # Note: You can use OpenCV's descriptor matchers, or roll your own!
     bf_matcher = cv2.BFMatcher(normType=cv2.HAMMING_NORM_TYPE, crossCheck=True)
 
     # Compute the matches between both images.
-    descriptors = bf_matcher.match(desc1, desc2)
+    matches = bf_matcher.match(desc1, desc2)
 
-    return descriptors
+    return matches
 
 
 def draw_matches(image1, image2, kp1, kp2, matches):
@@ -324,7 +322,6 @@ def draw_matches(image1, image2, kp1, kp2, matches):
         image_out: image1 and image2 joined side-by-side with matching lines; color image (BGR), uint8, values in [0, 255]
     """
 
-    # TODO: Your code here
     # Note: DO NOT use OpenCV's match drawing function(s)! Write your own :)
     # Compute number of channels.
     num_channels = 1
@@ -371,8 +368,49 @@ def compute_translation_RANSAC(kp1, kp2, matches):
         good_matches: consensus set of matches that agree with this translation
     """
 
-    # TODO: Your code here
-    return translation, good_matches
+    # Brain stopped working...
+    # Store all the things separately
+
+    num_matches = len(matches)
+    deltas = np.zeros(num_matches)
+    translations = np.zeros((num_matches,2,1))
+    threshold = 50
+
+    for i in range(num_matches):
+        match = matches[i]
+        x = int(kp1[match.queryIdx].pt[0])
+        y = int(kp1[match.queryIdx].pt[1])
+        x_prime = int(kp2[match.trainIdx].pt[0])
+        y_prime = int(kp2[match.trainIdx].pt[1])
+
+        delta_x = x_prime - x
+        delta_y = y_prime - y
+
+        delta = np.sqrt((delta_x)**2 + (delta_y)**2)
+
+        deltas[i] = delta
+        translations[i][0] = delta_x
+        translations[i][1] = delta_y
+
+    max_consensus = 0
+    for i in range(num_matches):
+        deltas_copy = deltas.copy()
+        delta = deltas[i]
+        deltas_copy[deltas_copy <= delta - threshold] = 0
+        deltas_copy[deltas_copy >= delta + threshold] = 0
+        consensus_indices = np.where(deltas_copy != 0)
+        if len(consensus_indices) > max_consensus:
+            max_consensus = len(consensus_indices)
+            max_consensus_indices = consensus_indices[0]
+            max_translation = translations[i]
+
+    good_matches = np.asarray(matches)[max_consensus_indices]
+
+    print "num matches", num_matches
+    print "num good matches", len(good_matches)
+    print "translation", max_translation
+
+    return max_translation, good_matches
 
 
 def compute_similarity_RANSAC(kp1, kp2, matches):
@@ -390,6 +428,33 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
         good_matches: consensus set of matches that agree with this transform
     """
 
+    # solutions = []
+    #
+    # indices = np.arrange(len(matches))
+    #
+    # num_iters = matches.shape[0]
+    #
+    # for i in range(num_iters):
+    #     np.random.shuffle(indices)
+    #
+    #     match_1 = matches[indices[0]]
+    #     u = int(kp1[match_1.queryIdx].pt[0])
+    #     v = int(kp1[match_1.queryIdx].pt[1])
+    #     u_prime = int(kp2[match_1.trainIdx].pt[0])
+    #     v_prime = int(kp2[match_1.trainIdx].pt[1])
+    #
+    #     match_2 = matches[indices[1]]
+    #     x = int(kp1[match_2.queryIdx].pt[0])
+    #     y = int(kp1[match_2.queryIdx].pt[1])
+    #     x_prime = int(kp2[match_2.trainIdx].pt[0])
+    #     y_prime = int(kp2[match_2.trainIdx].pt[1])
+    #
+    #     A = [[u, v, x, y][-v, u, -y, x][1, 0, 1, 0][0, 1, 0, 1]]
+    #     b = [u_prime, v_prime, x_prime, y_prime]
+    #
+    #     solutions.append(np.linalg.solve(A, b))
+
+
     # TODO: Your code here
     return transform
 
@@ -404,7 +469,11 @@ def write_image(image, name, scale=False):
     cv2.imwrite(os.path.join(output_dir, name), image)
     return image
 
-""" 1a """
+"""
+
+1a
+
+"""
 def one_a(img_name, run="foo"):
     img = cv2.imread(os.path.join(input_dir, img_name), cv2.IMREAD_GRAYSCALE).astype(np.float_) / 255.0
     Ix = gradientX(img)
@@ -419,6 +488,7 @@ def one_a(img_name, run="foo"):
     return img, Ix, Iy
 
 """
+
 1b
 
 transA, transB, simA and simB
@@ -441,13 +511,14 @@ def one_b(Ix, Iy, run="foo"):
     return R
 
 """
+
 1c
 
 transA, transB, simA and simB
 
 """
-def one_c(R, img, run="foo"):
-    corners = find_corners(R, 0.15, 2.5)
+def one_c(R, img, threshold=0.3, radius=5.0, run="foo"):
+    corners = find_corners(R, threshold, radius)
     img_out = draw_corners(scale_to_img(img), corners)
 
     if run == "transA":
@@ -462,6 +533,7 @@ def one_c(R, img, run="foo"):
     return corners
 
 """
+
 2a
 
 transA, transB and simA, simB
@@ -484,11 +556,16 @@ def two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, 
 
     return a_kps, b_kps
 
+"""
+
+2b
+
+"""
 def two_b(a_img, a_kps, b_img, b_kps, a_run="foo"):
     a_descs = get_descriptors(a_img, a_kps)
     b_descs = get_descriptors(b_img, b_kps)
 
-    matches = match_descriptors(a_descs, b_descs)
+    matches = match_descriptors(a_descs.astype(np.uint8), b_descs.astype(np.uint8))
     match_img = draw_matches(a_img, b_img, a_kps, b_kps, matches)
 
     if a_run == "transA":
@@ -497,6 +574,17 @@ def two_b(a_img, a_kps, b_img, b_kps, a_run="foo"):
         write_image(match_img, "ps5-2-b-2.png")
 
     return a_descs, b_descs, matches
+
+"""
+
+3a
+
+Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
+"""
+def three_a(a_kps, b_kps, matches, a_run="foo"):
+    translation, good_matches = compute_translation_RANSAC(a_kps, b_kps, matches)
+
+    return translation, good_matches
 
 # Driver code
 def main():
@@ -507,21 +595,26 @@ def main():
         a_run = img_pair[0]
         b_run = img_pair[1]
 
-        a_img, a_Ix, a_Iy = one_a(a_run + ".jpg", a_run)
-        b_img, b_Ix, b_Iy = one_a(b_run + ".jpg", b_run)
+        """ 1a """
+        a_img, a_Ix, a_Iy = one_a(a_run + ".jpg", run=a_run)
+        b_img, b_Ix, b_Iy = one_a(b_run + ".jpg", run=b_run)
 
-        a_R = one_b(a_Ix, a_Iy, a_run)
-        b_R = one_b(b_Ix, b_Iy, b_run)
+        """ 1b """
+        a_R = one_b(a_Ix, a_Iy, run=a_run)
+        b_R = one_b(b_Ix, b_Iy, run=b_run)
 
-        a_corners = one_c(a_R, a_img, a_run)
-        b_corners = one_c(b_R, b_img, b_run)
+        """ 1c """
+        a_corners = one_c(a_R, a_img, run=a_run)
+        b_corners = one_c(b_R, b_img, run=b_run)
 
+        """ 2a """
         a_kps, b_kps = two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run=a_run, b_run=b_run)
 
-        a_descs, b_descs, matches = two_b(a_img, a_kps, b_img, b_kps)
+        """ 2b """
+        a_descs, b_descs, matches = two_b(a_img, a_kps, b_img, b_kps, a_run=a_run)
 
-
-
+        """ 3a """
+        translation, good_matches = three_a(a_kps, b_kps, matches, a_run=a_run)
 
 
 # def main():
