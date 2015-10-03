@@ -428,7 +428,6 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
         good_matches: consensus set of matches that agree with this transform
     """
 
-    solutions = []
     num_matches = len(matches)
     indices = np.arange(num_matches)
 
@@ -437,31 +436,53 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
         np.random.shuffle(indices)
 
         match_1 = matches[indices[0]]
-        u = int(kp1[match_1.queryIdx].pt[0])
-        v = int(kp1[match_1.queryIdx].pt[1])
-        u_prime = int(kp2[match_1.trainIdx].pt[0])
-        v_prime = int(kp2[match_1.trainIdx].pt[1])
+        point_1_query = kp1[match_1.queryIdx].pt
+        point_1_train = kp2[match_1.trainIdx].pt
+        u = point_1_query[0]
+        v = point_1_query[1]
+        u_prime = point_1_train[0]
+        v_prime = point_1_train[1]
 
         match_2 = matches[indices[1]]
-        x = int(kp1[match_2.queryIdx].pt[0])
-        y = int(kp1[match_2.queryIdx].pt[1])
-        x_prime = int(kp2[match_2.trainIdx].pt[0])
-        y_prime = int(kp2[match_2.trainIdx].pt[1])
+        point_2_query = kp1[match_2.queryIdx].pt
+        point_2_train = kp2[match_2.trainIdx].pt
+        x = point_2_query[0]
+        y = point_2_query[1]
+        x_prime = point_2_train[0]
+        y_prime = point_2_train[1]
 
         A = np.array([[u, v, x, y],[-v, u, -y, x],[1, 0, 1, 0],[0, 1, 0, 1]])
         b_tmp = np.array([u_prime, v_prime, x_prime, y_prime])
 
         a, b, c, d = np.linalg.solve(A, b_tmp)
 
+        """
+        A little help from the forums:
+
+            Alexander Stephen Burch
+
+            Just now From my understanding, you'll calculate T. So you found a and b from linalg.solve,
+            then you will get c and d. Next, you'll loop through each point, and do matrix multiplication
+            between T and the point to get a new point. Then, we should compare this new point with the point
+            found from the match in the 2nd image (ie use, trainIdx in KP2).
+        """
+
         transform = np.array([[a, -b, c],
                               [b,  a, d]])
 
-        # print "\ntransform!\n", transform
+        # make sure to add the one to the point so the multiplication will work
+        t_point_1_query = np.dot(transform, np.append(point_1_query, 1))
+
+        print "transform: ", transform
+        print "transformed pt: ",t_point_1_query
+        print "matching pt: ", point_1_train, "\n\n"
 
 
         # solutions.append(np.linalg.solve(A, b))
 
-    return transform
+        good_matches = matches
+
+    return transform, good_matches
     # return transform
 
 def scale_to_img(matrix):
@@ -593,7 +614,7 @@ def three_a(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=50):
     match_img = draw_matches(a_img, b_img, a_kps, b_kps, good_matches)
 
     # if a_run == "transA":
-    write_image(match_img, "ps5-3-a-1.png", scale=True)
+    write_image(match_img, "ps5-3-a-1.png")
     # elif a_run == "transB":
     #     write_image(match_img, "ps5-3-a-2.png", scale=True)
     # elif a_run == "simA":
@@ -607,8 +628,13 @@ def three_a(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=50):
 3b
 
 """
-def three_b(a_kps, b_kps, matches):
-    compute_similarity_RANSAC(a_kps, b_kps, matches)
+def three_b(a_kps, b_kps, matches, a_img, b_img, a_run="foo"):
+    transform, good_matches = compute_similarity_RANSAC(a_kps, b_kps, matches)
+
+    match_img = draw_matches(a_img, b_img, a_kps, b_kps, good_matches)
+    write_image(match_img, "ps5-3-b-1.png")
+
+    return transform, good_matches
 
 # Driver code
 def main():
@@ -644,13 +670,13 @@ def main():
         3a  -  Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
         """
         if a_run == "transA":
-            translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run,threshold=5)
+            translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=5)
 
         """
         3b  -  Compute similarity transform for (simA, simB) pair, draw biggest consensus set
         """
         if a_run == "simA":
-            three_b(a_kps, b_kps, matches)
+            transform, good_matches = three_b(a_kps, b_kps, matches, a_img, b_img, a_run=a_run)
 
 
 # def main():
