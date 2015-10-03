@@ -129,7 +129,6 @@ def harris_response(Ix, Iy, kernel, alpha):
         R: Harris response map, same size as inputs, floating-point
     """
 
-    # TODO: Your code here
     # Note: Define any other parameters you need locally or as keyword arguments
     #kernel for blurring
     var = 0.4
@@ -141,9 +140,9 @@ def harris_response(Ix, Iy, kernel, alpha):
     # R = np.linalg.det(M) - alpha * (np.sum(np.diag(M))**2)
 
     #compute components of the structure tensor
-    w_xx = sig.convolve2d(Ix * Ix,kernel, mode='same')
+    w_xx = sig.convolve2d(Ix * Ix, kernel, mode='same')
     # Wxy = sig.convolve2d(Ix * Iy,kernel, mode='same')
-    w_yy = sig.convolve2d(Iy * Iy,kernel, mode='same')
+    w_yy = sig.convolve2d(Iy * Iy, kernel, mode='same')
 
     R = w_xx *w_yy - alpha* ((w_xx - w_yy)**2)
 
@@ -183,6 +182,8 @@ def find_corners(R, threshold, radius):
     corner_coords = [(candidates[0][c],candidates[1][c]) for c in range(len(candidates[0]))]
     #...and their values
     candidate_values = [R[c[0]][c[1]] for c in corner_coords]
+
+
 
     #sort candidates
     # index = np.argsort(candidate_values)
@@ -353,7 +354,7 @@ def draw_matches(image1, image2, kp1, kp2, matches):
     return joined_image
 
 
-def compute_translation_RANSAC(kp1, kp2, matches):
+def compute_translation_RANSAC(kp1, kp2, matches, threshold=50):
     """Compute best translation vector using RANSAC given keypoint matches.
 
     Parameters
@@ -374,7 +375,6 @@ def compute_translation_RANSAC(kp1, kp2, matches):
     num_matches = len(matches)
     deltas = np.zeros(num_matches)
     translations = np.zeros((num_matches,2,1))
-    threshold = 50
 
     for i in range(num_matches):
         match = matches[i]
@@ -428,35 +428,41 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
         good_matches: consensus set of matches that agree with this transform
     """
 
-    # solutions = []
-    #
-    # indices = np.arrange(len(matches))
-    #
-    # num_iters = matches.shape[0]
-    #
-    # for i in range(num_iters):
-    #     np.random.shuffle(indices)
-    #
-    #     match_1 = matches[indices[0]]
-    #     u = int(kp1[match_1.queryIdx].pt[0])
-    #     v = int(kp1[match_1.queryIdx].pt[1])
-    #     u_prime = int(kp2[match_1.trainIdx].pt[0])
-    #     v_prime = int(kp2[match_1.trainIdx].pt[1])
-    #
-    #     match_2 = matches[indices[1]]
-    #     x = int(kp1[match_2.queryIdx].pt[0])
-    #     y = int(kp1[match_2.queryIdx].pt[1])
-    #     x_prime = int(kp2[match_2.trainIdx].pt[0])
-    #     y_prime = int(kp2[match_2.trainIdx].pt[1])
-    #
-    #     A = [[u, v, x, y][-v, u, -y, x][1, 0, 1, 0][0, 1, 0, 1]]
-    #     b = [u_prime, v_prime, x_prime, y_prime]
-    #
-    #     solutions.append(np.linalg.solve(A, b))
+    solutions = []
+    num_matches = len(matches)
+    indices = np.arange(num_matches)
 
 
-    # TODO: Your code here
+    for i in range(num_matches):
+        np.random.shuffle(indices)
+
+        match_1 = matches[indices[0]]
+        u = int(kp1[match_1.queryIdx].pt[0])
+        v = int(kp1[match_1.queryIdx].pt[1])
+        u_prime = int(kp2[match_1.trainIdx].pt[0])
+        v_prime = int(kp2[match_1.trainIdx].pt[1])
+
+        match_2 = matches[indices[1]]
+        x = int(kp1[match_2.queryIdx].pt[0])
+        y = int(kp1[match_2.queryIdx].pt[1])
+        x_prime = int(kp2[match_2.trainIdx].pt[0])
+        y_prime = int(kp2[match_2.trainIdx].pt[1])
+
+        A = np.array([[u, v, x, y],[-v, u, -y, x],[1, 0, 1, 0],[0, 1, 0, 1]])
+        b_tmp = np.array([u_prime, v_prime, x_prime, y_prime])
+
+        a, b, c, d = np.linalg.solve(A, b_tmp)
+
+        transform = np.array([[a, -b, c],
+                              [b,  a, d]])
+
+        # print "\ntransform!\n", transform
+
+
+        # solutions.append(np.linalg.solve(A, b))
+
     return transform
+    # return transform
 
 def scale_to_img(matrix):
     max = matrix.max()
@@ -581,14 +587,33 @@ def two_b(a_img, a_kps, b_img, b_kps, a_run="foo"):
 
 Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
 """
-def three_a(a_kps, b_kps, matches, a_run="foo"):
-    translation, good_matches = compute_translation_RANSAC(a_kps, b_kps, matches)
+def three_a(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=50):
+    translation, good_matches = compute_translation_RANSAC(a_kps, b_kps, matches, threshold)
+
+    match_img = draw_matches(a_img, b_img, a_kps, b_kps, good_matches)
+
+    # if a_run == "transA":
+    write_image(match_img, "ps5-3-a-1.png", scale=True)
+    # elif a_run == "transB":
+    #     write_image(match_img, "ps5-3-a-2.png", scale=True)
+    # elif a_run == "simA":
+    #     write_image(match_img, "ps5-3-a-3.png", scale=True)
+    # elif a_run == "simB":
 
     return translation, good_matches
 
+"""
+
+3b
+
+"""
+def three_b(a_kps, b_kps, matches):
+    compute_similarity_RANSAC(a_kps, b_kps, matches)
+
 # Driver code
 def main():
-    image_pairs = np.array([["transA", "transB"]])
+    # image_pairs = np.array([["transA", "transB"]])
+    image_pairs = np.array([["simA", "simB"]])
     # image_pairs = np.array([["transA", "transB"], ["simA", "simB"]])
 
     for img_pair in image_pairs:
@@ -604,8 +629,10 @@ def main():
         b_R = one_b(b_Ix, b_Iy, run=b_run)
 
         """ 1c """
-        a_corners = one_c(a_R, a_img, run=a_run)
-        b_corners = one_c(b_R, b_img, run=b_run)
+        threshold=0.4
+        radius=5.0
+        a_corners = one_c(a_R, a_img, threshold, radius, run=a_run)
+        b_corners = one_c(b_R, b_img, threshold, radius, run=b_run)
 
         """ 2a """
         a_kps, b_kps = two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run=a_run, b_run=b_run)
@@ -613,8 +640,17 @@ def main():
         """ 2b """
         a_descs, b_descs, matches = two_b(a_img, a_kps, b_img, b_kps, a_run=a_run)
 
-        """ 3a """
-        translation, good_matches = three_a(a_kps, b_kps, matches, a_run=a_run)
+        """
+        3a  -  Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
+        """
+        if a_run == "transA":
+            translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run,threshold=5)
+
+        """
+        3b  -  Compute similarity transform for (simA, simB) pair, draw biggest consensus set
+        """
+        if a_run == "simA":
+            three_b(a_kps, b_kps, matches)
 
 
 # def main():
