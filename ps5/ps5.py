@@ -32,15 +32,15 @@ def gauss_derivative_kernels(size, size_y=None):
 
     return gx,gy
 
-def gauss_derivatives(im, n, ny=None):
+def gauss_derivatives(img, n, ny=None):
     """ returns x and y derivatives of an image using gaussian
         derivative filters of size n. The optional argument
         ny allows for a different size in the y direction."""
 
     gx, gy = gauss_derivative_kernels(n, size_y=ny)
 
-    imx = np.convolve(im, gx, mode='same')
-    imy = np.convolve(im, gy, mode='same')
+    imx = np.convolve(img, gx, mode='same')
+    imy = np.convolve(img, gy, mode='same')
 
     return imx,imy
 
@@ -69,7 +69,7 @@ def gradientX(image):
 
     for row in range(rows):
         for col in range(cols-1):
-            grad_x[row][col] = image[row][col+1] - image[row][col]
+            grad_x[row][col] = abs(image[row][col+1] - image[row][col])
 
     return grad_x
 
@@ -92,7 +92,7 @@ def gradientY(image):
 
     for row in range(rows-1):
         for col in range(cols):
-            grad_y[row][col] = image[row+1][col] - image[row][col]
+            grad_y[row][col] = abs(image[row+1][col] - image[row][col])
 
     return grad_y
 
@@ -129,12 +129,6 @@ def harris_response(Ix, Iy, kernel, alpha):
         R: Harris response map, same size as inputs, floating-point
     """
 
-    # Note: Define any other parameters you need locally or as keyword arguments
-    #kernel for blurring
-    var = 0.4
-    kernel = np.array([0.25 - var / 2.0, 0.25, var,
-                     0.25, 0.25 - var /2.0])
-    kernel = np.outer(kernel, kernel)
     # M = "something"
     #
     # R = np.linalg.det(M) - alpha * (np.sum(np.diag(M))**2)
@@ -169,13 +163,22 @@ def find_corners(R, threshold, radius):
         corners: peaks found in response map R, as a sequence (list) of (x, y) coordinates
     """
 
-    # R = R[R < threshold] = 0
-
-
-
     #find top corner candidates above a threshold
     corner_threshold = max(R.ravel()) * threshold
     R_t = (R > corner_threshold) * 1
+
+    M, N = R_t.shape
+    for x in range(0,M-radius+1):
+        for y in range(0,N-radius+1):
+            window = R_t[x:x+radius, y:y+radius]
+            if np.sum(window)==0:
+                localMax=0
+            else:
+                localMax = np.amax(window)
+            maxCoord = np.argmax(window)
+            # zero all but the localMax in the window
+            window[:] = 0
+            window.flat[maxCoord] = localMax
 
     #get coordinates of candidates
     candidates = R_t.nonzero()
@@ -354,7 +357,7 @@ def draw_matches(image1, image2, kp1, kp2, matches):
     return joined_image
 
 
-def compute_translation_RANSAC(kp1, kp2, matches, threshold=50):
+def compute_translation_RANSAC(kp1, kp2, matches, threshold=15):
     """Compute best translation vector using RANSAC given keypoint matches.
 
     Parameters
@@ -413,7 +416,7 @@ def compute_translation_RANSAC(kp1, kp2, matches, threshold=50):
     return max_translation, good_matches
 
 
-def compute_similarity_RANSAC(kp1, kp2, matches):
+def compute_similarity_RANSAC(kp1, kp2, matches, threshold=25):
     """Compute best similarity transform using RANSAC given keypoint matches.
 
     Parameters
@@ -431,11 +434,21 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
     num_matches = len(matches)
     indices = np.arange(num_matches)
 
+    num_matches = len(matches)
+    deltas = np.zeros(num_matches)
+    transforms = np.zeros((num_matches,2,3))
 
-    for i in range(num_matches):
-        np.random.shuffle(indices)
+    np.random.shuffle(indices)
 
-        match_1 = matches[indices[0]]
+    while len(indices) > 1:
+
+        index_1 = indices[0]
+        index_2 = indices[1]
+
+        # remove the used indices so we don't use them again
+        indices = indices[2:]
+
+        match_1 = matches[index_1]
         point_1_query = kp1[match_1.queryIdx].pt
         point_1_train = kp2[match_1.trainIdx].pt
         u = point_1_query[0]
@@ -443,7 +456,7 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
         u_prime = point_1_train[0]
         v_prime = point_1_train[1]
 
-        match_2 = matches[indices[1]]
+        match_2 = matches[index_2]
         point_2_query = kp1[match_2.queryIdx].pt
         point_2_train = kp2[match_2.trainIdx].pt
         x = point_2_query[0]
@@ -451,10 +464,13 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
         x_prime = point_2_train[0]
         y_prime = point_2_train[1]
 
-        A = np.array([[u, v, x, y],[-v, u, -y, x],[1, 0, 1, 0],[0, 1, 0, 1]])
+        # Get into the form 'Ax = b'
+        A = np.array([[u, v, x, y], [-v, u, -y, x], [1, 0, 1, 0], [0, 1, 0, 1]])
         b_tmp = np.array([u_prime, v_prime, x_prime, y_prime])
 
+        # Solve for 'x'
         a, b, c, d = np.linalg.solve(A, b_tmp)
+        # print "solution: ", np.linalg.solve(A, b_tmp), "\n\n"
 
         """
         A little help from the forums:
@@ -475,15 +491,36 @@ def compute_similarity_RANSAC(kp1, kp2, matches):
 
         print "transform: ", transform
         print "transformed pt: ",t_point_1_query
-        print "matching pt: ", point_1_train, "\n\n"
+        print "matching pt: ", point_1_query, "\n\n"
+
+        delta_x = point_1_query[0] - t_point_1_query[0]
+        delta_y = point_1_query[1] - t_point_1_query[1]
+
+        delta = np.sqrt((delta_x)**2 + (delta_y)**2)
+
+        deltas[index_1] = delta
+        deltas[index_2] = delta
+
+        transforms[index_1] = transform
+        transforms[index_1] = transform
+
+    max_consensus = 0
+    for i in range(num_matches):
+        deltas_copy = deltas.copy()
+        delta = deltas[i]
+        deltas_copy[deltas_copy <= delta - threshold] = 0
+        deltas_copy[deltas_copy >= delta + threshold] = 0
+        consensus_indices = np.where(deltas_copy != 0)
+        print "len(consensus_indices) ", len(consensus_indices)
+        if len(consensus_indices) > max_consensus:
+            max_consensus = len(consensus_indices)
+            max_consensus_indices = consensus_indices[0]
+            max_transform = transforms[i]
+
+    good_matches = np.asarray(matches)[max_consensus_indices]
 
 
-        # solutions.append(np.linalg.solve(A, b))
-
-        good_matches = matches
-
-    return transform, good_matches
-    # return transform
+    return max_transform, good_matches
 
 def scale_to_img(matrix):
     max = matrix.max()
@@ -522,8 +559,9 @@ transA, transB, simA and simB
 
 """
 def one_b(Ix, Iy, run="foo"):
-
-    R = harris_response(Ix, Iy, np.ones((3, 3), dtype=np.float) / 9.0, 0.04)
+    kernel = cv2.getGaussianKernel(3,0.3)
+    # kernel = np.ones((3, 3), dtype=np.float) / 9.0
+    R = harris_response(Ix, Iy, kernel, 0.04)
 
     # Scale/type-cast response map and write to file
     if run == "transA":
@@ -655,10 +693,13 @@ def main():
         b_R = one_b(b_Ix, b_Iy, run=b_run)
 
         """ 1c """
-        threshold=0.4
-        radius=5.0
+        threshold=0.1
+        radius=15
         a_corners = one_c(a_R, a_img, threshold, radius, run=a_run)
         b_corners = one_c(b_R, b_img, threshold, radius, run=b_run)
+
+        print "num A corners: ", len(a_corners)
+        print "num B corners: ", len(b_corners)
 
         """ 2a """
         a_kps, b_kps = two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run=a_run, b_run=b_run)
@@ -670,13 +711,15 @@ def main():
         3a  -  Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
         """
         if a_run == "transA":
-            translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=5)
+            translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=15)
 
         """
         3b  -  Compute similarity transform for (simA, simB) pair, draw biggest consensus set
         """
         if a_run == "simA":
             transform, good_matches = three_b(a_kps, b_kps, matches, a_img, b_img, a_run=a_run)
+            print "transform: ", transform
+            print "matches: ", good_matches
 
 
 # def main():
