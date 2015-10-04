@@ -401,10 +401,12 @@ def compute_translation_RANSAC(kp1, kp2, matches, threshold=15):
         delta = deltas[i]
         deltas_copy[deltas_copy <= delta - threshold] = 0
         deltas_copy[deltas_copy >= delta + threshold] = 0
-        consensus_indices = np.where(deltas_copy != 0)
-        if len(consensus_indices) > max_consensus:
-            max_consensus = len(consensus_indices)
-            max_consensus_indices = consensus_indices[0]
+        print "deltas!!! ", np.where(deltas_copy != 0)
+        consensus_indices = np.where(deltas_copy != 0)[0]
+        num_consensus = len(consensus_indices)
+        if num_consensus > max_consensus:
+            max_consensus = num_consensus
+            max_consensus_indices = consensus_indices
             max_translation = translations[i]
 
     good_matches = np.asarray(matches)[max_consensus_indices]
@@ -416,7 +418,7 @@ def compute_translation_RANSAC(kp1, kp2, matches, threshold=15):
     return max_translation, good_matches
 
 
-def compute_similarity_RANSAC(kp1, kp2, matches, threshold=25):
+def compute_similarity_RANSAC(kp1, kp2, matches, threshold=15):
     """Compute best similarity transform using RANSAC given keypoint matches.
 
     Parameters
@@ -434,7 +436,6 @@ def compute_similarity_RANSAC(kp1, kp2, matches, threshold=25):
     num_matches = len(matches)
     indices = np.arange(num_matches)
 
-    num_matches = len(matches)
     deltas = np.zeros(num_matches)
     transforms = np.zeros((num_matches,2,3))
 
@@ -465,7 +466,10 @@ def compute_similarity_RANSAC(kp1, kp2, matches, threshold=25):
         y_prime = point_2_train[1]
 
         # Get into the form 'Ax = b'
-        A = np.array([[u, v, x, y], [-v, u, -y, x], [1, 0, 1, 0], [0, 1, 0, 1]])
+        # A = np.array([[u, v, x, y], [-v, u, -y, x], [1, 0, 1, 0], [0, 1, 0, 1]])
+        # b_tmp = np.array([u_prime, v_prime, x_prime, y_prime])
+
+        A = np.array([[u, -v, 1, 0], [v, u, 0, 1], [x, -y, 1, 0], [y, x, 0, 1]])
         b_tmp = np.array([u_prime, v_prime, x_prime, y_prime])
 
         # Solve for 'x'
@@ -484,7 +488,7 @@ def compute_similarity_RANSAC(kp1, kp2, matches, threshold=25):
         """
 
         transform = np.array([[a, -b, c],
-                              [b,  a, d]])
+                              [b,  a, d]], dtype=np.float)
 
         # make sure to add the one to the point so the multiplication will work
         t_point_1_query = np.dot(transform, np.append(point_1_query, 1))
@@ -497,6 +501,7 @@ def compute_similarity_RANSAC(kp1, kp2, matches, threshold=25):
         delta_y = point_1_query[1] - t_point_1_query[1]
 
         delta = np.sqrt((delta_x)**2 + (delta_y)**2)
+        print "delta", delta
 
         deltas[index_1] = delta
         deltas[index_2] = delta
@@ -510,15 +515,15 @@ def compute_similarity_RANSAC(kp1, kp2, matches, threshold=25):
         delta = deltas[i]
         deltas_copy[deltas_copy <= delta - threshold] = 0
         deltas_copy[deltas_copy >= delta + threshold] = 0
-        consensus_indices = np.where(deltas_copy != 0)
-        print "len(consensus_indices) ", len(consensus_indices)
-        if len(consensus_indices) > max_consensus:
-            max_consensus = len(consensus_indices)
-            max_consensus_indices = consensus_indices[0]
+        consensus_indices = np.where(deltas_copy != 0)[0]
+        num_consensus = len(consensus_indices)
+        print "len(consensus_indices) ", num_consensus
+        if num_consensus > max_consensus:
+            max_consensus = num_consensus
+            max_consensus_indices = consensus_indices
             max_transform = transforms[i]
 
     good_matches = np.asarray(matches)[max_consensus_indices]
-
 
     return max_transform, good_matches
 
@@ -676,8 +681,8 @@ def three_b(a_kps, b_kps, matches, a_img, b_img, a_run="foo"):
 
 # Driver code
 def main():
-    # image_pairs = np.array([["transA", "transB"]])
-    image_pairs = np.array([["simA", "simB"]])
+    image_pairs = np.array([["transA", "transB"]])
+    # image_pairs = np.array([["simA", "simB"]])
     # image_pairs = np.array([["transA", "transB"], ["simA", "simB"]])
 
     for img_pair in image_pairs:
