@@ -901,7 +901,30 @@ def three_c(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=20):
 
 """
 def three_d(transform, img):
+    rand = np.zeros((img.shape[0], img.shape[1]))
+    out_warp = cv2.invertAffineTransform(sim_matrix)
+    warped_image = cv2.warpAffine(img.astype(np.uint8),out_warp, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)
+    write_image(warped_image, "sim_warped_simB.png")
+    merged = cv2.merge((rand.astype(np.uint8),warped_image.astype(np.uint8),simA.astype(np.uint8)))
+    write_image(merged, "ps5-3-d-1.png")
+    
     warped_image = cv2.warpPerspective(img.astype(np.uint8),transform,(img.shape[0], img.shape[1]))
+    
+    return out_warp
+    
+"""
+
+3e
+
+"""
+def three_e(affine, a_img, b_img):
+    out_warp = cv2.invertAffineTransform(affine)
+    warped_image = cv2.warpAffine(b_img.astype(np.uint8),out_warp, (b_img.shape[1], b_img.shape[0]), flags=cv2.INTER_LINEAR)
+    write_image(warped_image, "affine_warped_simB.png")
+    merged = cv2.merge((rand.astype(np.uint8),warped_image.astype(np.uint8),a_img.astype(np.uint8)))
+    write_image(merged, "ps5-3-e-1.png")
+    
+    return out_warp
 
 # Driver code
 def main():
@@ -963,12 +986,15 @@ def main():
         """
         3d
         """
-        # if a_run == "simA":
-            # three_d(similarity_transform, b_img)
+        if a_run == "simA":
+            three_d(similarity_transform, b_img)
 
         """
         3e
         """
+        if a_run == "simA":
+            three_e(affine_transform, a_img, b_img)
+            
 
 
 # def main():
