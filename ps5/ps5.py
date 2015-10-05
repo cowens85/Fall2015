@@ -902,7 +902,7 @@ def three_c(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=20):
 """
 def three_d(transform, img):
     rand = np.zeros((img.shape[0], img.shape[1]))
-    out_warp = cv2.invertAffineTransform(sim_matrix)
+    out_warp = cv2.invertAffineTransform(transform)
     warped_image = cv2.warpAffine(img.astype(np.uint8),out_warp, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)
     write_image(warped_image, "ps5-3-d-1.png")
     merged = cv2.merge((rand.astype(np.uint8),warped_image.astype(np.uint8),simA.astype(np.uint8)))
