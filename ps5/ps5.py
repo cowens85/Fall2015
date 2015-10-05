@@ -900,16 +900,16 @@ def three_c(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=20):
 3d
 
 """
-def three_d(transform, img):
-    rand = np.zeros((img.shape[0], img.shape[1]))
+def three_d(transform, a_img, b_img):
+    print "HERE"
+    print transform
+    rand = np.zeros((b_img.shape[0], b_img.shape[1]))
     out_warp = cv2.invertAffineTransform(transform)
-    warped_image = cv2.warpAffine(img.astype(np.uint8),out_warp, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)
+    warped_image = cv2.warpAffine(b_img.astype(np.uint8), out_warp, (b_img.shape[1], b_img.shape[0]), flags=cv2.INTER_LINEAR)
     write_image(warped_image, "ps5-3-d-1.png")
-    merged = cv2.merge((rand.astype(np.uint8),warped_image.astype(np.uint8),simA.astype(np.uint8)))
+    merged = cv2.merge((rand.astype(np.uint8),warped_image.astype(np.uint8),a_img.astype(np.uint8)))
     write_image(merged, "ps5-3-d-2.png")
-    
-    warped_image = cv2.warpPerspective(img.astype(np.uint8),transform,(img.shape[0], img.shape[1]))
-    
+
     return out_warp
     
 """
@@ -918,6 +918,7 @@ def three_d(transform, img):
 
 """
 def three_e(affine, a_img, b_img):
+    rand = np.zeros((a_img.shape[0], a_img.shape[1]))
     out_warp = cv2.invertAffineTransform(affine)
     warped_image = cv2.warpAffine(b_img.astype(np.uint8),out_warp, (b_img.shape[1], b_img.shape[0]), flags=cv2.INTER_LINEAR)
     write_image(warped_image, "ps5-3-e-1.png")
@@ -987,7 +988,7 @@ def main():
         3d
         """
         if a_run == "simA":
-            three_d(similarity_transform, b_img)
+            three_d(similarity_transform, a_img, b_img)
 
         """
         3e
