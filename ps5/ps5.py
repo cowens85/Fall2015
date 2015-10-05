@@ -110,7 +110,6 @@ def make_image_pair(image1, image2):
         image_pair: combination of both images, side-by-side, same type
     """
 
-    # TODO: make sure this works for gray scale
     return np.concatenate((image1, image2), axis=1)
 
 
@@ -237,8 +236,8 @@ def gradient_angle(Ix, Iy):
         angle: gradient angle image, each value in degrees [0, 359)
     """
 
-    # TODO: Your code here
     # Note: +ve X axis points to the right (0 degrees), +ve Y axis points down (90 degrees)
+
     # angle = np.zeros(Ix.shape)
     # for row in range(Ix.shape[0]):
     #     for col in range(Ix.shape[1]):
@@ -376,7 +375,8 @@ def compute_translation_RANSAC(kp1, kp2, matches, threshold=15):
     # Store all the things separately
 
     num_matches = len(matches)
-    deltas = np.zeros(num_matches)
+    x_deltas = np.zeros(num_matches)
+    y_deltas = np.zeros(num_matches)
     translations = np.zeros((num_matches,2,1))
 
     for i in range(num_matches):
@@ -386,23 +386,42 @@ def compute_translation_RANSAC(kp1, kp2, matches, threshold=15):
         x_prime = int(kp2[match.trainIdx].pt[0])
         y_prime = int(kp2[match.trainIdx].pt[1])
 
-        delta_x = x_prime - x
-        delta_y = y_prime - y
+        x_delta = x_prime - x
+        y_delta = y_prime - y
 
-        delta = np.sqrt((delta_x)**2 + (delta_y)**2)
+        x_deltas[i] = x_delta
+        y_deltas[i] = y_delta
 
-        deltas[i] = delta
-        translations[i][0] = delta_x
-        translations[i][1] = delta_y
+        translations[i][0] = x_delta
+        translations[i][1] = y_delta
 
     max_consensus = 0
+    # print "x_deltas ", x_deltas
+    # print "y_deltas ", y_deltas
     for i in range(num_matches):
-        deltas_copy = deltas.copy()
-        delta = deltas[i]
-        deltas_copy[deltas_copy <= delta - threshold] = 0
-        deltas_copy[deltas_copy >= delta + threshold] = 0
-        print "deltas!!! ", np.where(deltas_copy != 0)
-        consensus_indices = np.where(deltas_copy != 0)[0]
+        x_deltas_copy = x_deltas.copy()
+        x_delta = x_deltas_copy[i]
+
+        x_deltas_copy[x_deltas_copy <= x_delta - threshold] = 0
+        x_deltas_copy[x_deltas_copy >= x_delta + threshold] = 0
+
+        x_consensus_indices = np.where(x_deltas_copy != 0)[0]
+
+
+        y_deltas_copy = y_deltas.copy()
+        y_delta = y_deltas_copy[i]
+
+        y_deltas_copy[y_deltas_copy <= y_delta - threshold] = 0
+        y_deltas_copy[y_deltas_copy >= y_delta + threshold] = 0
+
+        y_consensus_indices = np.where(y_deltas_copy != 0)[0]
+
+
+        # print "x_consensus ", x_consensus_indices
+        # print "y_consensus ", y_consensus_indices
+
+        consensus_indices = np.intersect1d(y_consensus_indices, x_consensus_indices)
+
         num_consensus = len(consensus_indices)
         if num_consensus > max_consensus:
             max_consensus = num_consensus
@@ -411,11 +430,53 @@ def compute_translation_RANSAC(kp1, kp2, matches, threshold=15):
 
     good_matches = np.asarray(matches)[max_consensus_indices]
 
-    print "num matches", num_matches
-    print "num good matches", len(good_matches)
-    print "translation", max_translation
+    # print "num matches", num_matches
+    # print "num good matches", len(good_matches)
+    for match in good_matches:
+        x = int(kp1[match.queryIdx].pt[0])
+        y = int(kp1[match.queryIdx].pt[1])
+        x_prime = int(kp2[match.trainIdx].pt[0])
+        y_prime = int(kp2[match.trainIdx].pt[1])
+        x_delta = x_prime - x
+        y_delta = y_prime - y
+
+        delta = np.sqrt(x_delta**2 + y_delta**2)
+        # print "x,y: ", x, " ", y
+        # print "x',y': ", x_prime, " ", y_prime
+        # print "delta", delta
+
+    # print "translation", max_translation
 
     return max_translation, good_matches
+
+
+def find_best_transform(max_consensus, num_matches, threshold, transforms, x_deltas, y_deltas):
+    for i in range(num_matches):
+        x_deltas_copy = x_deltas.copy()
+        x_delta = x_deltas_copy[i]
+
+        x_deltas_copy[x_deltas_copy <= x_delta - threshold] = 0
+        x_deltas_copy[x_deltas_copy >= x_delta + threshold] = 0
+
+        x_consensus_indices = np.where(x_deltas_copy != 0)[0]
+
+        y_deltas_copy = y_deltas.copy()
+        y_delta = y_deltas_copy[i]
+
+        y_deltas_copy[y_deltas_copy <= y_delta - threshold] = 0
+        y_deltas_copy[y_deltas_copy >= y_delta + threshold] = 0
+
+        y_consensus_indices = np.where(y_deltas_copy != 0)[0]
+
+        consensus_indices = np.intersect1d(y_consensus_indices, x_consensus_indices)
+        num_consensus = len(consensus_indices)
+        # print "len(consensus_indices) ", num_consensus
+        if num_consensus > max_consensus:
+            max_consensus = num_consensus
+            max_consensus_indices = consensus_indices
+            max_transform = transforms[i]
+
+    return max_consensus_indices, max_transform
 
 
 def compute_similarity_RANSAC(kp1, kp2, matches, threshold=15):
@@ -436,7 +497,8 @@ def compute_similarity_RANSAC(kp1, kp2, matches, threshold=15):
     num_matches = len(matches)
     indices = np.arange(num_matches)
 
-    deltas = np.zeros(num_matches)
+    x_deltas = np.zeros(num_matches)
+    y_deltas = np.zeros(num_matches)
     transforms = np.zeros((num_matches,2,3))
 
     np.random.shuffle(indices)
@@ -493,35 +555,155 @@ def compute_similarity_RANSAC(kp1, kp2, matches, threshold=15):
         # make sure to add the one to the point so the multiplication will work
         t_point_1_query = np.dot(transform, np.append(point_1_query, 1))
 
-        print "transform: ", transform
-        print "transformed pt: ",t_point_1_query
-        print "matching pt: ", point_1_query, "\n\n"
+        # print "transform: ", transform
+        # print "transformed pt: ",t_point_1_query
+        # print "matching pt: ", point_1_query, "\n\n"
 
-        delta_x = point_1_query[0] - t_point_1_query[0]
-        delta_y = point_1_query[1] - t_point_1_query[1]
+        x_delta = point_1_query[0] - t_point_1_query[0]
+        y_delta = point_1_query[1] - t_point_1_query[1]
 
-        delta = np.sqrt((delta_x)**2 + (delta_y)**2)
-        print "delta", delta
+        # deltas[index_1] = delta
+        # deltas[index_2] = delta
 
-        deltas[index_1] = delta
-        deltas[index_2] = delta
+
+        # delta = np.sqrt((x_delta)**2 + (y_delta)**2)
+        # print "delta", delta
+
+        x_deltas[index_1] = x_delta
+        y_deltas[index_1] = y_delta
+
+        x_deltas[index_2] = x_delta
+        y_deltas[index_2] = y_delta
+
 
         transforms[index_1] = transform
-        transforms[index_1] = transform
+        transforms[index_2] = transform
 
     max_consensus = 0
-    for i in range(num_matches):
-        deltas_copy = deltas.copy()
-        delta = deltas[i]
-        deltas_copy[deltas_copy <= delta - threshold] = 0
-        deltas_copy[deltas_copy >= delta + threshold] = 0
-        consensus_indices = np.where(deltas_copy != 0)[0]
-        num_consensus = len(consensus_indices)
-        print "len(consensus_indices) ", num_consensus
-        if num_consensus > max_consensus:
-            max_consensus = num_consensus
-            max_consensus_indices = consensus_indices
-            max_transform = transforms[i]
+    max_consensus_indices, max_transform = find_best_transform(max_consensus, num_matches, threshold, transforms,
+                                                               x_deltas, y_deltas)
+
+    good_matches = np.asarray(matches)[max_consensus_indices]
+
+    return max_transform, good_matches
+
+
+def compute_affine(kp1, kp2, matches, threshold=15):
+    """Compute best similarity transform using RANSAC given keypoint matches.
+
+    Parameters
+    ----------
+        kp1: list of keypoints (cv2.KeyPoint objects) found in image1
+        kp2: list of keypoints (cv2.KeyPoint objects) found in image2
+        matches: list of matches (as cv2.DMatch objects)
+
+    Returns
+    -------
+        transform: similarity transform matrix, NumPy array of shape (2, 3)
+        good_matches: consensus set of matches that agree with this transform
+    """
+
+    num_matches = len(matches)
+    indices = np.arange(num_matches)
+
+    x_deltas = np.zeros(num_matches)
+    y_deltas = np.zeros(num_matches)
+    transforms = np.zeros((num_matches,2,3))
+
+    np.random.shuffle(indices)
+
+    while len(indices) > 2:
+
+        index_1 = indices[0]
+        index_2 = indices[1]
+        index_3 = indices[2]
+
+        # remove the used indices so we don't use them again
+        indices = indices[3:]
+
+        match_1 = matches[index_1]
+        point_1_query = kp1[match_1.queryIdx].pt
+        point_1_train = kp2[match_1.trainIdx].pt
+        u = point_1_query[0]
+        v = point_1_query[1]
+        u_prime = point_1_train[0]
+        v_prime = point_1_train[1]
+
+        match_2 = matches[index_2]
+        point_2_query = kp1[match_2.queryIdx].pt
+        point_2_train = kp2[match_2.trainIdx].pt
+        x = point_2_query[0]
+        y = point_2_query[1]
+        x_prime = point_2_train[0]
+        y_prime = point_2_train[1]
+
+        match_3 = matches[index_3]
+        point_3_query = kp1[match_3.queryIdx].pt
+        point_3_train = kp2[match_3.trainIdx].pt
+        n = point_3_query[0]
+        m = point_3_query[1]
+        n_prime = point_3_train[0]
+        m_prime = point_3_train[1]
+
+        # Get into the form 'Ax = b'
+        # A = np.array([[u, v, x, y], [-v, u, -y, x], [1, 0, 1, 0], [0, 1, 0, 1]])
+        # b_tmp = np.array([u_prime, v_prime, x_prime, y_prime])
+
+        A = np.array([[u, v, 1, 0, 0, 0], [0, 0, 0, u, v, 1], [x, y, 1, 0, 0, 0], [0, 0, 0, x, y, 1], [n, m, 1, 0, 0, 0], [0, 0, 0, n, m, 1]])
+        b_tmp = np.array([u_prime, v_prime, x_prime, y_prime, n_prime, m_prime])
+
+        # Solve for 'x'
+        a, b, c, d, e, f = np.linalg.solve(A, b_tmp)
+        # print "A:\n", A
+        # print "b:\n", b_tmp
+        # solution = np.linalg.solve(A, b_tmp)
+        # print "solution: ", solution, "\n\n"
+        # a, b, c, d, e, f = solution
+
+        """
+        A little help from the forums:
+
+            Alexander Stephen Burch
+
+            Just now From my understanding, you'll calculate T. So you found a and b from linalg.solve,
+            then you will get c and d. Next, you'll loop through each point, and do matrix multiplication
+            between T and the point to get a new point. Then, we should compare this new point with the point
+            found from the match in the 2nd image (ie use, trainIdx in KP2).
+        """
+
+        transform = np.array([[a, b, c],
+                              [d,  e, f]], dtype=np.float)
+
+        # make sure to add the one to the point so the multiplication will work
+        t_point_1_query = np.dot(transform, np.append(point_1_query, 1))
+
+        # print "transform: ", transform
+        # print "transformed pt: ",t_point_1_query
+        # print "matching pt: ", point_1_query, "\n\n"
+
+        x_delta = point_1_query[0] - t_point_1_query[0]
+        y_delta = point_1_query[1] - t_point_1_query[1]
+
+        # deltas[index_1] = delta
+        # deltas[index_2] = delta
+
+
+        # delta = np.sqrt((x_delta)**2 + (y_delta)**2)
+        # print "delta", delta
+
+        x_deltas[index_1] = x_delta
+        y_deltas[index_1] = y_delta
+
+        x_deltas[index_2] = x_delta
+        y_deltas[index_2] = y_delta
+
+
+        transforms[index_1] = transform
+        transforms[index_2] = transform
+
+    max_consensus = 0
+    max_consensus_indices, max_transform = find_best_transform(max_consensus, num_matches, threshold, transforms,
+                                                               x_deltas, y_deltas)
 
     good_matches = np.asarray(matches)[max_consensus_indices]
 
@@ -609,7 +791,7 @@ def one_c(R, img, threshold=0.3, radius=5.0, run="foo"):
 transA, transB and simA, simB
 
 """
-def two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run="foo", b_run="foo", _size=5.0, _octave=0):
+def two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run="foo", _size=5.0, _octave=0):
     a_angle = gradient_angle(a_Ix, a_Iy)
     a_kps = get_keypoints(a_corners, a_R, a_angle, _size, _octave)
 
@@ -621,6 +803,18 @@ def two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, 
     # TODO: Similarly, find keypoints for transB and draw them
     # TODO: Combine transA and transB images (with keypoints drawn) using make_image_pair() and write to file
     # make_image_pair(imgA, imgB)
+
+    # print a_img.shape
+
+    a_img_match = cv2.drawKeypoints(cv2.cvtColor(a_img.copy().astype(np.uint8), cv2.COLOR_GRAY2BGR), a_kps,flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    b_img_match = cv2.drawKeypoints(cv2.cvtColor(b_img.copy().astype(np.uint8), cv2.COLOR_GRAY2BGR), b_kps,flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    combined_img = make_image_pair(a_img_match, b_img_match)
+
+    if a_run == "transA":
+        write_image(combined_img, "ps5-2-a-1.png")
+    elif a_run == "simA":
+        write_image(combined_img, "ps5-2-a-2.png")
+
 
     # TODO: Ditto for (simA, simB) pair
 
@@ -655,6 +849,9 @@ def three_a(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=50):
     translation, good_matches = compute_translation_RANSAC(a_kps, b_kps, matches, threshold)
 
     match_img = draw_matches(a_img, b_img, a_kps, b_kps, good_matches)
+    print "3a."
+    print "Translation: ", translation
+    print "% Good Matches: ", (len(good_matches)*1.0 / len(matches)) * 100
 
     # if a_run == "transA":
     write_image(match_img, "ps5-3-a-1.png")
@@ -671,18 +868,45 @@ def three_a(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=50):
 3b
 
 """
-def three_b(a_kps, b_kps, matches, a_img, b_img, a_run="foo"):
-    transform, good_matches = compute_similarity_RANSAC(a_kps, b_kps, matches)
+def three_b(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=15):
+    transform, good_matches = compute_similarity_RANSAC(a_kps, b_kps, matches, threshold)
 
     match_img = draw_matches(a_img, b_img, a_kps, b_kps, good_matches)
     write_image(match_img, "ps5-3-b-1.png")
+    print "3b."
+    print "Transform: ", transform
+    print "% Good Matches: ", (len(good_matches)*1.0 / len(matches)) * 100
 
     return transform, good_matches
 
+"""
+
+3c
+
+"""
+def three_c(a_kps, b_kps, matches, a_img, b_img, a_run="foo", threshold=20):
+    transform, good_matches = compute_affine(a_kps, b_kps, matches, threshold)
+
+    match_img = draw_matches(a_img, b_img, a_kps, b_kps, good_matches)
+    write_image(match_img, "ps5-3-c-1.png")
+    print "3c."
+    print "Transform: ", transform
+    print "% Good Matches: ", (len(good_matches)*1.0 / len(matches)) * 100
+
+    return transform, good_matches
+
+"""
+
+3d
+
+"""
+def three_d(transform, img):
+    warped_image = cv2.warpPerspective(img.astype(np.uint8),transform,(img.shape[0], img.shape[1]))
+
 # Driver code
 def main():
-    image_pairs = np.array([["transA", "transB"]])
-    # image_pairs = np.array([["simA", "simB"]])
+    # image_pairs = np.array([["transA", "transB"]])
+    image_pairs = np.array([["simA", "simB"]])
     # image_pairs = np.array([["transA", "transB"], ["simA", "simB"]])
 
     for img_pair in image_pairs:
@@ -698,16 +922,20 @@ def main():
         b_R = one_b(b_Ix, b_Iy, run=b_run)
 
         """ 1c """
-        threshold=0.1
-        radius=15
+        if a_run == "transA":
+            threshold=0.1
+            radius=15
+        else:
+            threshold=0.1
+            radius=20
         a_corners = one_c(a_R, a_img, threshold, radius, run=a_run)
         b_corners = one_c(b_R, b_img, threshold, radius, run=b_run)
 
-        print "num A corners: ", len(a_corners)
-        print "num B corners: ", len(b_corners)
+        # print "num A corners: ", len(a_corners)
+        # print "num B corners: ", len(b_corners)
 
         """ 2a """
-        a_kps, b_kps = two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run=a_run, b_run=b_run)
+        a_kps, b_kps = two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run=a_run)
 
         """ 2b """
         a_descs, b_descs, matches = two_b(a_img, a_kps, b_img, b_kps, a_run=a_run)
@@ -716,15 +944,31 @@ def main():
         3a  -  Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
         """
         if a_run == "transA":
-            translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=15)
+            translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=35)
 
         """
         3b  -  Compute similarity transform for (simA, simB) pair, draw biggest consensus set
         """
         if a_run == "simA":
-            transform, good_matches = three_b(a_kps, b_kps, matches, a_img, b_img, a_run=a_run)
-            print "transform: ", transform
-            print "matches: ", good_matches
+            similarity_transform, good_matches = three_b(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=20)
+            # print "transform: ", transform
+            # print "matches: ", good_matches
+
+        """
+        3c
+        """
+        if a_run == "simA":
+            affine_transform, good_matches = three_c(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=15)
+
+        """
+        3d
+        """
+        # if a_run == "simA":
+            # three_d(similarity_transform, b_img)
+
+        """
+        3e
+        """
 
 
 # def main():
