@@ -930,8 +930,8 @@ def three_e(affine, a_img, b_img):
 # Driver code
 def main():
     # image_pairs = np.array([["transA", "transB"]])
-    image_pairs = np.array([["simA", "simB"]])
-    # image_pairs = np.array([["transA", "transB"], ["simA", "simB"]])
+    # image_pairs = np.array([["simA", "simB"]])
+    image_pairs = np.array([["transA", "transB"], ["simA", "simB"]])
 
     for img_pair in image_pairs:
         a_run = img_pair[0]
