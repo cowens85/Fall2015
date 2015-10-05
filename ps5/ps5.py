@@ -904,9 +904,9 @@ def three_d(transform, img):
     rand = np.zeros((img.shape[0], img.shape[1]))
     out_warp = cv2.invertAffineTransform(sim_matrix)
     warped_image = cv2.warpAffine(img.astype(np.uint8),out_warp, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)
-    write_image(warped_image, "sim_warped_simB.png")
+    write_image(warped_image, "ps5-3-d-1.png")
     merged = cv2.merge((rand.astype(np.uint8),warped_image.astype(np.uint8),simA.astype(np.uint8)))
-    write_image(merged, "ps5-3-d-1.png")
+    write_image(merged, "ps5-3-d-2.png")
     
     warped_image = cv2.warpPerspective(img.astype(np.uint8),transform,(img.shape[0], img.shape[1]))
     
@@ -920,9 +920,9 @@ def three_d(transform, img):
 def three_e(affine, a_img, b_img):
     out_warp = cv2.invertAffineTransform(affine)
     warped_image = cv2.warpAffine(b_img.astype(np.uint8),out_warp, (b_img.shape[1], b_img.shape[0]), flags=cv2.INTER_LINEAR)
-    write_image(warped_image, "affine_warped_simB.png")
+    write_image(warped_image, "ps5-3-e-1.png")
     merged = cv2.merge((rand.astype(np.uint8),warped_image.astype(np.uint8),a_img.astype(np.uint8)))
-    write_image(merged, "ps5-3-e-1.png")
+    write_image(merged, "ps5-3-e-2.png")
     
     return out_warp
 
