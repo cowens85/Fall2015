@@ -61,17 +61,18 @@ def gradientX(image):
     -------
         Ix: image gradient in X direction, values in [-1.0, 1.0]
     """
-    shape = image.shape
-    rows = shape[0]
-    cols = shape[1]
-
-    grad_x = np.zeros([rows,cols], dtype=np.float)
-
-    for row in range(rows):
-        for col in range(cols-1):
-            grad_x[row][col] = abs(image[row][col+1] - image[row][col])
-
-    return grad_x
+    return  cv2.Sobel(image,cv2.CV_64F,1,0,ksize=5)
+    # shape = image.shape
+    # rows = shape[0]
+    # cols = shape[1]
+    #
+    # grad_x = np.zeros([rows,cols], dtype=np.float)
+    #
+    # for row in range(rows):
+    #     for col in range(cols-1):
+    #         grad_x[row][col] = abs(image[row][col+1] - image[row][col])
+    #
+    # return grad_x
 
 def gradientY(image):
     """Compute image gradient in Y direction.
@@ -84,17 +85,18 @@ def gradientY(image):
     -------
         Iy: image gradient in Y direction, values in [-1.0, 1.0]
     """
-    shape = image.shape
-    rows = shape[0]
-    cols = shape[1]
-
-    grad_y = np.zeros([rows,cols], dtype=np.float)
-
-    for row in range(rows-1):
-        for col in range(cols):
-            grad_y[row][col] = abs(image[row+1][col] - image[row][col])
-
-    return grad_y
+    return cv2.Sobel(image,cv2.CV_64F,0,1,ksize=5)
+    # shape = image.shape
+    # rows = shape[0]
+    # cols = shape[1]
+    #
+    # grad_y = np.zeros([rows,cols], dtype=np.float)
+    #
+    # for row in range(rows-1):
+    #     for col in range(cols):
+    #         grad_y[row][col] = abs(image[row+1][col] - image[row][col])
+    #
+    # return grad_y
 
 
 def make_image_pair(image1, image2):
@@ -109,8 +111,21 @@ def make_image_pair(image1, image2):
     -------
         image_pair: combination of both images, side-by-side, same type
     """
+    tmp1 = image1.copy()
+    tmp2 = image2.copy()
 
-    return np.concatenate((image1, image2), axis=1)
+    min = np.min(tmp1)
+    tmp1 += abs(min)
+    max = np.max(tmp1)
+    tmp1 *= 255.0 / max
+
+    min = np.min(tmp2)
+    tmp2 += abs(min)
+    max = np.max(tmp2)
+    tmp2 *= 255.0 / max
+
+
+    return np.concatenate((tmp1, tmp2), axis=1)
 
 
 def harris_response(Ix, Iy, kernel, alpha):
@@ -709,10 +724,12 @@ def compute_affine(kp1, kp2, matches, threshold=15):
 
     return max_transform, good_matches
 
+
 def scale_to_img(matrix):
     max = matrix.max()
     matrix *= 255.0/max
     return matrix.astype(np.uint8)
+
 
 def write_image(image, name, scale=False):
     if scale:
@@ -941,60 +958,60 @@ def main():
         a_img, a_Ix, a_Iy = one_a(a_run + ".jpg", run=a_run)
         b_img, b_Ix, b_Iy = one_a(b_run + ".jpg", run=b_run)
 
-        """ 1b """
-        a_R = one_b(a_Ix, a_Iy, run=a_run)
-        b_R = one_b(b_Ix, b_Iy, run=b_run)
-
-        """ 1c """
-        if a_run == "transA":
-            threshold=0.1
-            radius=15
-        else:
-            threshold=0.1
-            radius=20
-        a_corners = one_c(a_R, a_img, threshold, radius, run=a_run)
-        b_corners = one_c(b_R, b_img, threshold, radius, run=b_run)
-
-        # print "num A corners: ", len(a_corners)
-        # print "num B corners: ", len(b_corners)
-
-        """ 2a """
-        a_kps, b_kps = two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run=a_run)
-
-        """ 2b """
-        a_descs, b_descs, matches = two_b(a_img, a_kps, b_img, b_kps, a_run=a_run)
-
-        """
-        3a  -  Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
-        """
-        if a_run == "transA":
-            translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=35)
-
-        """
-        3b  -  Compute similarity transform for (simA, simB) pair, draw biggest consensus set
-        """
-        if a_run == "simA":
-            similarity_transform, good_matches = three_b(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=20)
-            # print "transform: ", transform
-            # print "matches: ", good_matches
-
-        """
-        3c
-        """
-        if a_run == "simA":
-            affine_transform, good_matches = three_c(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=15)
-
-        """
-        3d
-        """
-        if a_run == "simA":
-            three_d(similarity_transform, a_img, b_img)
-
-        """
-        3e
-        """
-        if a_run == "simA":
-            three_e(affine_transform, a_img, b_img)
+        # """ 1b """
+        # a_R = one_b(a_Ix, a_Iy, run=a_run)
+        # b_R = one_b(b_Ix, b_Iy, run=b_run)
+        #
+        # """ 1c """
+        # if a_run == "transA":
+        #     threshold=0.1
+        #     radius=15
+        # else:
+        #     threshold=0.1
+        #     radius=20
+        # a_corners = one_c(a_R, a_img, threshold, radius, run=a_run)
+        # b_corners = one_c(b_R, b_img, threshold, radius, run=b_run)
+        #
+        # # print "num A corners: ", len(a_corners)
+        # # print "num B corners: ", len(b_corners)
+        #
+        # """ 2a """
+        # a_kps, b_kps = two_a(a_img, a_Ix, a_Iy, a_corners, a_R, b_img, b_Ix, b_Iy, b_corners, b_R, a_run=a_run)
+        #
+        # """ 2b """
+        # a_descs, b_descs, matches = two_b(a_img, a_kps, b_img, b_kps, a_run=a_run)
+        #
+        # """
+        # 3a  -  Compute translation vector using RANSAC for (transA, transB) pair, draw biggest consensus set
+        # """
+        # if a_run == "transA":
+        #     translation, good_matches = three_a(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=35)
+        #
+        # """
+        # 3b  -  Compute similarity transform for (simA, simB) pair, draw biggest consensus set
+        # """
+        # if a_run == "simA":
+        #     similarity_transform, good_matches = three_b(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=20)
+        #     # print "transform: ", transform
+        #     # print "matches: ", good_matches
+        #
+        # """
+        # 3c
+        # """
+        # if a_run == "simA":
+        #     affine_transform, good_matches = three_c(a_kps, b_kps, matches, a_img, b_img, a_run=a_run, threshold=15)
+        #
+        # """
+        # 3d
+        # """
+        # if a_run == "simA":
+        #     three_d(similarity_transform, a_img, b_img)
+        #
+        # """
+        # 3e
+        # """
+        # if a_run == "simA":
+        #     three_e(affine_transform, a_img, b_img)
             
 
 
