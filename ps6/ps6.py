@@ -345,7 +345,6 @@ def write_quiver_image(U, V, name, scale=5):
     stride = 15  # plot every so many rows, columns
     color = (0, 255, 0)  # green
     img_out = np.zeros((V.shape[0], U.shape[1], 3), dtype=np.uint8)
-    print 'drawing'
     print U
     print V
     for y in xrange(0, V.shape[0], stride):
@@ -461,6 +460,7 @@ def four_a():
     U40, V40 = hierarchical_LK(Shift0, ShiftR40)
     """Save displacement image pairs (U, V), stacked"""
     u_v_10_cat = cat_images([U10,V10])
+    write_quiver_image(U10,V10, "quiver_4_a.jpg")
     u_v_20_cat = cat_images([U20,V20])
     u_v_40_cat = cat_images([U40,V40])
     save_cat_images([u_v_10_cat, u_v_20_cat, u_v_40_cat], "ps6-4-a-1.png", stacked=True, apply_color=True)
@@ -488,6 +488,7 @@ def four_b():
     """Save displacement image pairs (U, V), stacked"""
     u_v_yos_1_2_cat = cat_images([U1_2,V1_2])
     u_v_yos_1_3_cat = cat_images([U1_3,V1_3])
+
     save_cat_images([u_v_yos_1_2_cat, u_v_yos_1_3_cat], "ps6-4-b-1.png", stacked=True, apply_color=True)
 
 
