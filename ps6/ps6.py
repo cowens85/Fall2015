@@ -477,6 +477,27 @@ def four_a():
     save_cat_images([diff_10, diff_20, diff_40], "ps6-4-a-2.png", stacked=True, apply_color=True)
 
 
+def four_b():
+    # 4b - Apply your function to DataSeq1 for the images yos_img_01.jpg, yos_img_02.jpg and yos_img_03.jpg
+    yos_img_01 = cv2.imread(os.path.join(input_dir, 'TestSeq', 'yos_img_01.jpg'), 0) / 255.0
+    yos_img_02 = cv2.imread(os.path.join(input_dir, 'TestSeq', 'yos_img_02.jpg'), 0) / 255.0
+    yos_img_03 = cv2.imread(os.path.join(input_dir, 'TestSeq', 'yos_img_03.png'), 0) / 255.0
+
+    U1_2, V1_2 = hierarchical_LK(yos_img_01, yos_img_02)
+    U1_3, V1_3 = hierarchical_LK(yos_img_01, yos_img_03)
+    """Save displacement image pairs (U, V), stacked"""
+    u_v_yos_1_2_cat = cat_images([U1_2,V1_2])
+    u_v_yos_1_3_cat = cat_images([U1_3,V1_3])
+    save_cat_images([u_v_yos_1_2_cat, u_v_yos_1_3_cat], "ps6-4-b-1.png", stacked=True, apply_color=True)
+
+
+    yos_02_warped = warp(yos_img_02, U1_2, V1_2)
+    yos_03_warped = warp(yos_img_03, U1_3, V1_3)
+
+    """Save difference between each warped image and original image (Shift0), stacked"""
+    diff_yos_02 = yos_02_warped - yos_img_01
+    diff_yos_03 = yos_03_warped - yos_img_01
+    save_cat_images([diff_yos_02, diff_yos_03], "ps6-4-b-2.png", stacked=True, apply_color=True)
 
 
 
