@@ -25,7 +25,7 @@ class ParticleFilter(object):
             kwargs: keyword arguments needed by particle filter model, including:
             - num_particles: number of particles
         """
-        self.num_particles = kwargs.get('num_particles', 100)  # extract num_particles (default: 100)
+        self.num_particles = kwargs.get('num_particles', 300)  # extract num_particles (default: 100)
         # TODO: Your code here - extract any additional keyword arguments you need and initialize state
         self.sigma = kwargs.get('sigma', 10)
 
@@ -41,13 +41,13 @@ class ParticleFilter(object):
         # self.weights = []
 
         buf = 10
-        x_range = np.arange(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf).astype(np.int)
-        y_range = np.arange(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf).astype(np.int)
-        if should_print: print 'xrange', x_range
-        if should_print: print 'yrange', y_range
+        # x_range = np.arange(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf).astype(np.int)
+        # y_range = np.arange(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf).astype(np.int)
+        # if should_print: print 'xrange', x_range
+        # if should_print: print 'yrange', y_range
         for i in range(0,self.num_particles):
             #select a random (x,y)
-            self.particles.append((np.random.choice(x_range, 1)[0], np.random.choice(y_range, 1)[0]))
+            self.particles.append((np.random.choice(self.num_particles, 1)[0], np.random.choice(self.num_particles, 1)[0]))
             # self.weights.append(1.0/self.num_particles)
 
 
@@ -225,11 +225,6 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
                 w = int(template_rect['w'])
 
                 template = frame[y:y + h, x:x + w]
-
-                kwargs['y'] = y
-                kwargs['x'] = x
-                kwargs['h'] = h
-                kwargs['w'] = w
 
                 if 'template' in save_frames:
                     # cv2.imwrite(save_frames['template'], template)
