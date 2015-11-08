@@ -52,14 +52,14 @@ class ParticleFilter(object):
 
 
     def re_sample(self):
-        if should_print:
-            print "sum weights", sum(self.weights)
+        # if should_print:
+        #     print "sum weights", sum(self.weights)
         #     print "min", min(self.weights)
         #     print "max", max(self.weights)
 
 
         weighted_rand_particles = np.random.multinomial(self.num_particles, self.weights, size=1)[0]
-        if should_print: print "sum weighted rand parts", sum(weighted_rand_particles)
+        # if should_print: print "sum weighted rand parts", sum(weighted_rand_particles)
         new_particles = []
         for i in range(self.num_particles):
             for num_parts in range(weighted_rand_particles[i]):
@@ -70,10 +70,10 @@ class ParticleFilter(object):
         # Do we actually want to reset the weigts?
         self.weights = np.ones(self.num_particles, dtype=np.float) / self.num_particles
 
-        if should_print:
-            print "len weights", len(self.weights)
-            print "num parts", len(self.particles)
-            print "num_particles", self.num_particles
+        # if should_print:
+        #     print "len weights", len(self.weights)
+        #     print "num parts", len(self.particles)
+        #     print "num_particles", self.num_particles
 
         # weighted_rand_particles = weighted_rand_particles.astype(np.float) / sum(weighted_rand_particles)
         # if should_print:
