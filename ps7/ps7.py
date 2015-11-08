@@ -123,6 +123,8 @@ class ParticleFilter(object):
 
         self.weights /= amountAdded
 
+        self.weights /= sum(self.weights)
+
         self.re_sample()
 
         pass  # TODO: Your code here - use the frame as a new observation (measurement) and update model
