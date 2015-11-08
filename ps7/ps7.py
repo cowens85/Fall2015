@@ -160,6 +160,7 @@ class ParticleFilter(object):
     def render(self, frame_out):
         """Visualize current particle filter state.
 
+
         Parameters
         ----------
             frame_out: copy of frame to overlay visualization on
