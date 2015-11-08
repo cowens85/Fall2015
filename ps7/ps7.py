@@ -2,6 +2,7 @@
 
 import numpy as np
 import cv2
+from random import randint
 
 import os
 
@@ -47,7 +48,9 @@ class ParticleFilter(object):
         # if should_print: print 'yrange', y_range
         for i in range(0,self.num_particles):
             #select a random (x,y)
-            self.particles.append((np.random.choice(frame.shape[1], 1)[0], np.random.choice(frame.shape[0], 1)[0]))
+            frame_height = frame.shape[0]
+            frame_width = frame.shape[1]
+            self.particles.append((randint(0, frame_width), randint(0, frame_height)))
             # self.weights.append(1.0/self.num_particles)
 
 
@@ -167,13 +170,13 @@ class ParticleFilter(object):
             v_weighted_mean += v * self.weights[i]
 
         center = (int(u_weighted_mean), int(v_weighted_mean))
-        x, y, w, h = get_rect(center, self.template.shape)
+        x, y, h, w = get_rect(center, self.template.shape)
         cv2.rectangle(frame_out, (x, y), (x + w, y + h), (0, 255, 0))
         cv2.circle(frame_out, center, 5, (0, 255, 0))
 
 
 def get_patch(frame, particle, shape_needed):
-    x, y, w, h = get_rect(particle, shape_needed)
+    x, y, h, w = get_rect(particle, shape_needed)
 
     # if should_print:
     #     print "y,h,x,w", y, h, x, w
@@ -189,7 +192,7 @@ def get_rect(point, shape_needed):
     h = int(shape_needed[0])
     w = int(shape_needed[1])
 
-    return x, y, w, h
+    return x, y, h, w
 
 def calc_mse(template, patch):
     return ((template - patch) ** 2).mean(axis=None)
@@ -262,7 +265,7 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
                 break  # no more frames, or can't read video
 
             color_frame = frame.copy()
-            frame = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY).astype(np.float)
+            frame = create_simple_frame(frame)
 
             # Extract template and initialize (one-time only)
             if template is None:
@@ -274,12 +277,10 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
                 template = frame[y:y + h, x:x + w]
 
                 if 'template' in save_frames:
-                    # cv2.imwrite(save_frames['template'], template)
-                    center = (x + w/2, y + h/2)
-                    x, y, w, h = get_rect(center, template.shape)
-                    cv2.rectangle(color_frame, (x, y), (x + w, y + h), (0, 255, 0))
-                    cv2.circle(color_frame, center, 5, (0, 255, 0))
-                    cv2.imwrite(save_frames['template'], color_frame)
+                    cv2.imwrite(save_frames['template'], template)
+                    # cv2.rectangle(color_frame, (x, y), (x + w, y + h), (0, 255, 0))
+                    # cv2.circle(color_frame, (x + w/2, y + h/2), 5, (0, 255, 0))
+                    # cv2.imwrite(save_frames['template'], color_frame)
 
                 pf = pf_class(frame, template, **kwargs)
 
@@ -289,13 +290,23 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
             # Render and save output, if indicated
             if frame_num in save_frames:
                 pf.render(color_frame)
-                cv2.imwrite(save_frames[frame_num], color_frame)
+                cv2.imshow(save_frames[frame_num], color_frame)
+                # cv2.imwrite(save_frames[frame_num], color_frame)
 
             # Update frame number
             frame_num += 1
         except KeyboardInterrupt:  # press ^C to quit
             break
 
+def create_simple_frame(frame):
+    # Gray
+    # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float)
+
+    # Weighted vals
+    b, g, r = cv2.split(frame)
+    frame = (b * 0.3) + (g * 0.58) + (r * 0.12)
+
+    return frame
 
 def one_a_to_d():
     run_particle_filter(ParticleFilter,  # particle filter model class
@@ -304,11 +315,22 @@ def one_a_to_d():
         # Note: To specify your own window, directly pass in a dict: {'x': x, 'y': y, 'w': width, 'h': height}
         {
             'template': os.path.join(output_dir, 'ps7-1-a-1.png'),
-            28: os.path.join(output_dir, 'ps7-1-a-2.png'),
-            84: os.path.join(output_dir, 'ps7-1-a-3.png'),
-            144: os.path.join(output_dir, 'ps7-1-a-4.png')
+            0: os.path.join(output_dir, '0.png'),
+            25: os.path.join(output_dir, '25.png'),
+            50: os.path.join(output_dir, '50.png'),
+            75: os.path.join(output_dir, '75.png'),
+            100: os.path.join(output_dir, '100.png'),
+            125: os.path.join(output_dir, '125.png'),
+            150: os.path.join(output_dir, '150.png'),
+            175: os.path.join(output_dir, '175.png'),
+            200: os.path.join(output_dir, '200.png'),
+            225: os.path.join(output_dir, '225.png'),
+            250: os.path.join(output_dir, '250.png')
+            # 28: os.path.join(output_dir, 'ps7-1-a-2.png'),
+            # 84: os.path.join(output_dir, 'ps7-1-a-3.png'),
+            # 144: os.path.join(output_dir, 'ps7-1-a-4.png')
         },  # frames to save, mapped to filenames, and 'template' if desired
-        num_particles=50, sigma=20,  measurement_noise=0.2)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
+        num_particles=500, sigma=10,  measurement_noise=0.2)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
     # 1b
     # TODO: Repeat 1a, but vary template window size and discuss trade-offs (no output images required)
