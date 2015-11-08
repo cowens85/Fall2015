@@ -16,7 +16,6 @@ should_print = True
 # Assignment code
 class ParticleFilter(object):
     """A particle filter tracker, encapsulating state, initialization and update methods."""
-    count = 0
 
     def __init__(self, frame, template, **kwargs):
         """Initialize particle filter object.
@@ -128,8 +127,6 @@ class ParticleFilter(object):
         #normalize all weights by amount added
 
         amountAdded = 0.0
-        max_MSE = 0.0
-        max_patch = []
         for i in range(0, self.num_particles):
             # if should_print : print "particles", self.particles[i]
             patch = get_patch(frame, self.particles[i], self.template.shape)
@@ -143,9 +140,6 @@ class ParticleFilter(object):
             if patch.shape == self.template.shape:
 
                 similarity = calc_similarity(self.template, patch, self.sigma)
-                if similarity > max_MSE:
-                    max_patch = patch
-                    max_MSE = similarity
 
                 self.weights[i] += similarity
                 amountAdded += similarity
@@ -155,11 +149,9 @@ class ParticleFilter(object):
                 self.particles[i] = (int(self.particles[i][0] + noise0), int(self.particles[i][1] + noise1))
 
 
-        self.count += 1
-
-        self.weights /= amountAdded
-
-        self.weights /= sum(self.weights)
+        if amountAdded > 0:
+            self.weights /= amountAdded
+            self.weights /= sum(self.weights)
 
         self.re_sample()
 
@@ -276,6 +268,7 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
     template = None
     pf = None
     frame_num = 0
+    count = 0
 
     # Loop over video (till last frame or Ctrl+C is pressed)
     while True:
@@ -306,6 +299,9 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
                 if 'template' in save_frames:
                     cv2.imwrite(save_frames['template'], template)
                     # cv2.rectangle(color_frame, (x, y), (x + w, y + h), (0, 255, 0))
+                    # cv2.imwrite("output/frame.png", color_frame)
+                    # exit()
+                    # cv2.rectangle(color_frame, (x, y), (x + w, y + h), (0, 255, 0))
                     # cv2.circle(color_frame, (x + w/2, y + h/2), 5, (0, 255, 0))
                     # cv2.imwrite(save_frames['template'], color_frame)
 
@@ -315,10 +311,15 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
             pf.process(frame)  # TODO: implement this!
 
             # Render and save output, if indicated
-            if frame_num in save_frames:
-                pf.render(color_frame)
-                cv2.imshow(save_frames[frame_num], color_frame)
-                # cv2.imwrite(save_frames[frame_num], color_frame)
+            if kwargs['show_img']:
+                if (count % 10) == 0:
+                    pf.render(color_frame)
+                    cv2.imshow('Frame ' + str(count), color_frame)
+                count += 1
+            else:
+                if frame_num in save_frames:
+                    pf.render(color_frame)
+                    cv2.imwrite(save_frames[frame_num], color_frame)
 
             # Update frame number
             frame_num += 1
@@ -383,8 +384,36 @@ def one_e():
             32: os.path.join(output_dir, 'ps7-1-e-2.png'),
             46: os.path.join(output_dir, 'ps7-1-e-3.png')
         },
-        num_particles=500, sigma=10,  measurement_noise=0.2)  # TODO: Tune parameters so that model can continuing tracking through noise
+        num_particles=500, sigma=15,  measurement_noise=0.1, show_img=True)  # TODO: Tune parameters so that model can continuing tracking through noise
 
+
+def two_a():
+    # TODO: Implement AppearanceModelPF (derived from ParticleFilter)
+    # TODO: Run it on pres_debate.avi to track Romney's left hand, tweak parameters to track up to frame 140
+    run_particle_filter(ParticleFilter,
+                        os.path.join(input_dir, "pres_debate.avi"),
+                        get_template_rect(os.path.join(input_dir, "hand.txt")),
+                        {
+                            'template': os.path.join(output_dir, 'ps7-2-a-1.png'),
+                            15: os.path.join(output_dir, 'ps7-2-a-2'),
+                            50: os.path.join(output_dir, 'ps7-2-a-3.png'),
+                            140: os.path.join(output_dir, 'ps7-2-a-4.png')
+                        },
+                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=True)
+
+
+def two_b():
+    # TODO: Run AppearanceModelPF on noisy_debate.avi, tweak parameters to track hand up to frame 140
+    run_particle_filter(ParticleFilter,
+                        os.path.join(input_dir, "pres_debate.avi"),
+                        get_template_rect(os.path.join(input_dir, "hand.txt")),
+                        {
+                            'template': os.path.join(output_dir, 'ps7-2-b-1.png'),
+                            15: os.path.join(output_dir, 'ps7-2-b-2.png'),
+                            50: os.path.join(output_dir, 'ps7-2-b-3.png'),
+                            140: os.path.join(output_dir, 'ps7-2-b-4.png')
+                        },
+                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=True)
 
 def main():
     """ Note: Comment out parts of this code as necessary"""
@@ -393,14 +422,13 @@ def main():
     # one_a_to_d()
 
     """ 1e """
-    one_e()
+    # one_e()
 
     """ 2a """
-    # TODO: Implement AppearanceModelPF (derived from ParticleFilter)
-    # TODO: Run it on pres_debate.avi to track Romney's left hand, tweak parameters to track up to frame 140
+    two_a()
 
     """ 2b """
-    # TODO: Run AppearanceModelPF on noisy_debate.avi, tweak parameters to track hand up to frame 140
+    # two_b()
 
     # EXTRA CREDIT
     # 3: Use color histogram distance instead of MSE (you can implement a derived class similar to AppearanceModelPF)
