@@ -58,7 +58,7 @@ class ParticleFilter(object):
         #     print "max", max(self.weights)
 
 
-        weighted_rand_particles = np.random.choice(self.num_particles, self.num_particles, replace=True, p=self.weights)
+        weighted_rand_particles = np.random.multinomial(self.num_particles, self.weights, size=1)[0]
         if should_print: print "sum weighted rand parts", sum(weighted_rand_particles)
         new_particles = []
         for i in range(self.num_particles):
