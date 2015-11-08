@@ -42,7 +42,7 @@ class ParticleFilter(object):
         self.weights = np.ones(self.num_particles, dtype=np.float) / self.num_particles
         # self.weights = []
 
-        start_near_temp = False
+        start_near_temp = True
         buf = 30
         # x_range = np.arange(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf).astype(np.int)
         # y_range = np.arange(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf).astype(np.int)
@@ -221,8 +221,39 @@ class AppearanceModelPF(ParticleFilter):
         # TODO: Your code here - additional initialization steps, keyword arguments
 
     # TODO: Override process() to implement appearance model update
+    def process(self, frame):
+        alpha = 0.3
+        amountAdded = 0.0
+        best_patch = []
+        max_sim = 0
+        for i in range(0, self.num_particles):
+            # if should_print : print "particles", self.particles[i]
+            patch = get_patch(frame, self.particles[i], self.template.shape)
 
-    # TODO: Override render() if desired (shouldn't have to, ideally)
+            # ignore patches at the edges of the image
+            if patch.shape == self.template.shape:
+
+                similarity = calc_similarity(self.template, patch, self.sigma)
+                if similarity > max_sim:
+                    best_patch = patch
+                    max_sim = similarity
+
+                self.weights[i] += similarity
+                amountAdded += similarity
+                noise0 = np.random.normal(0, self.sigma, 1)
+                noise1 = np.random.normal(0, self.sigma, 1)
+
+                self.particles[i] = (int(self.particles[i][0] + noise0), int(self.particles[i][1] + noise1))
+
+        self.template = alpha * best_patch + (1 - alpha) * self.template
+
+        if amountAdded > 0:
+            self.weights /= amountAdded
+            self.weights /= sum(self.weights)
+
+        self.re_sample()
+
+        # TODO: Override render() if desired (shouldn't have to, ideally)
 
 
 # Driver/helper code
