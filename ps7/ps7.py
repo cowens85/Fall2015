@@ -37,9 +37,7 @@ class ParticleFilter(object):
 
         #weights - same indicies as the particles (e.g. weight[3] applies to particles[3])
         #init weights to be uniform
-        self.weights = np.ones(self.num_particles,dtype=np.float) / self.num_particles
-        if should_print:
-            print "sum weights", sum(self.weights)
+        self.weights = np.ones(self.num_particles, dtype=np.float) / self.num_particles
         # self.weights = []
 
         # buf = 10
@@ -56,24 +54,45 @@ class ParticleFilter(object):
     def re_sample(self):
         if should_print:
             print "sum weights", sum(self.weights)
-            print "min", min(self.weights)
-            print "max", max(self.weights)
+        #     print "min", min(self.weights)
+        #     print "max", max(self.weights)
 
 
         weighted_rand_particles = np.random.choice(self.num_particles, self.num_particles, replace=True, p=self.weights)
+        if should_print: print "sum weighted rand parts", sum(weighted_rand_particles)
         new_particles = []
-        new_weights = []
-        avg_weight = np.average(weighted_rand_particles)
         for i in range(self.num_particles):
-            weight = weighted_rand_particles[i]
-            if weight >= avg_weight:
+            for num_parts in range(weighted_rand_particles[i]):
                 new_particles.append(self.particles[i])
-                new_weights.append(self.weights[i])
+                # if should_print: print "len new_parts", len(new_particles)
+
         self.particles = new_particles
-        self.weights = np.asarray(new_weights)
+        # Do we actually want to reset the weigts?
+        self.weights = np.ones(self.num_particles, dtype=np.float) / self.num_particles
+
         if should_print:
-            print "weights: ", self.weights
-        self.num_particles = len(self.particles)
+            print "len weights", len(self.weights)
+            print "num parts", len(self.particles)
+            print "num_particles", self.num_particles
+
+        # weighted_rand_particles = weighted_rand_particles.astype(np.float) / sum(weighted_rand_particles)
+        # if should_print:
+        #     print "weighted parts", weighted_rand_particles
+        #
+        # self.weights = weighted_rand_particles
+        # new_particles = []
+        # new_weights = []
+        # avg_weight = np.average(weighted_rand_particles)
+        # for i in range(self.num_particles):
+        #     weight = weighted_rand_particles[i]
+        #     if weight >= avg_weight:
+        #         new_particles.append(self.particles[i])
+        #         new_weights.append(self.weights[i])
+        # self.particles = new_particles
+        # self.weights = np.asarray(new_weights)
+        # if should_print:
+        #     print "weights: ", self.weights
+        # self.num_particles = len(self.particles)
 
     def process(self, frame):
         """Process a frame (image) of video and update filter state.
