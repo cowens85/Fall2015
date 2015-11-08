@@ -41,7 +41,7 @@ class ParticleFilter(object):
         self.weights = np.ones(self.num_particles, dtype=np.float) / self.num_particles
         # self.weights = []
 
-        # buf = 10
+        buf = 30
         # x_range = np.arange(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf).astype(np.int)
         # y_range = np.arange(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf).astype(np.int)
         # if should_print: print 'xrange', x_range
@@ -50,7 +50,9 @@ class ParticleFilter(object):
             #select a random (x,y)
             frame_height = frame.shape[0]
             frame_width = frame.shape[1]
-            self.particles.append((randint(0, frame_width), randint(0, frame_height)))
+            # self.particles.append((randint(0, frame_width), randint(0, frame_height)))
+            self.particles.append((randint(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf),
+                                   randint(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf)))
             # self.weights.append(1.0/self.num_particles)
 
 
@@ -131,6 +133,7 @@ class ParticleFilter(object):
             #     print "frame:", frame.shape
             #     print "patch:", patch.shape
 
+            # ignore patches at the edges of the image
             if patch.shape == self.template.shape:
                 MSE = calc_mse(self.template, patch)
                 self.weights[i] += MSE
@@ -273,6 +276,11 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
                 x = int(template_rect['x'])
                 h = int(template_rect['h'])
                 w = int(template_rect['w'])
+
+                kwargs['x'] = x
+                kwargs['y'] = y
+                kwargs['h'] = h
+                kwargs['w'] = w
 
                 template = frame[y:y + h, x:x + w]
 
