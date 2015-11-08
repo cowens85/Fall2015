@@ -176,17 +176,22 @@ class ParticleFilter(object):
         # TODO: Your code here - draw particles, tracking window and a circle to indicate spread
         u_weighted_mean = 0
         v_weighted_mean = 0
-        for i in range(len(self.particles)):
+        for i in range(self.num_particles):
             u = self.particles[i][0]
             v = self.particles[i][1]
             cv2.circle(frame_out, (int(u), int(v)), 1, (0, 0, 255))
             u_weighted_mean += u * self.weights[i]
             v_weighted_mean += v * self.weights[i]
 
+        sum_dist = 0
+        for i in range(self.num_particles):
+            part_pt = self.particles[i]
+            sum_dist += math.sqrt((part_pt[0] - u_weighted_mean)**2 + (part_pt[1] - v_weighted_mean)**2)
+        radius = int(sum_dist / self.num_particles)
         center = (int(u_weighted_mean), int(v_weighted_mean))
         x, y, h, w = get_rect(center, self.template.shape)
         cv2.rectangle(frame_out, (x, y), (x + w, y + h), (0, 255, 0))
-        cv2.circle(frame_out, center, 5, (0, 255, 0))
+        cv2.circle(frame_out, center, radius, (0, 255, 0))
 
 
 def get_patch(frame, particle, shape_needed):
