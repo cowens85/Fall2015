@@ -3,6 +3,7 @@
 import numpy as np
 import cv2
 from random import randint
+import math
 
 import os
 
@@ -15,6 +16,7 @@ should_print = True
 # Assignment code
 class ParticleFilter(object):
     """A particle filter tracker, encapsulating state, initialization and update methods."""
+    count = 0
 
     def __init__(self, frame, template, **kwargs):
         """Initialize particle filter object.
@@ -41,6 +43,7 @@ class ParticleFilter(object):
         self.weights = np.ones(self.num_particles, dtype=np.float) / self.num_particles
         # self.weights = []
 
+        start_near_temp = False
         buf = 30
         # x_range = np.arange(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf).astype(np.int)
         # y_range = np.arange(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf).astype(np.int)
@@ -50,10 +53,11 @@ class ParticleFilter(object):
             #select a random (x,y)
             frame_height = frame.shape[0]
             frame_width = frame.shape[1]
-            # self.particles.append((randint(0, frame_width), randint(0, frame_height)))
-            self.particles.append((randint(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf),
-                                   randint(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf)))
-            # self.weights.append(1.0/self.num_particles)
+            if start_near_temp:
+                self.particles.append((randint(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf),
+                                       randint(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf)))
+            else:
+                self.particles.append((randint(0, frame_width), randint(0, frame_height)))
 
 
     def re_sample(self):
@@ -124,6 +128,8 @@ class ParticleFilter(object):
         #normalize all weights by amount added
 
         amountAdded = 0.0
+        max_MSE = 0.0
+        max_patch = []
         for i in range(0, self.num_particles):
             # if should_print : print "particles", self.particles[i]
             patch = get_patch(frame, self.particles[i], self.template.shape)
@@ -135,19 +141,21 @@ class ParticleFilter(object):
 
             # ignore patches at the edges of the image
             if patch.shape == self.template.shape:
-                cv2.imshow('template', self.template)
-                cv2.imshow('patch', self.patch)
-                cv2.waitKey('8000')
-                MSE = calc_mse(self.template, patch)
-                self.weights[i] += MSE
-                amountAdded += MSE
+
+                similarity = calc_similarity(self.template, patch, self.sigma)
+                if similarity > max_MSE:
+                    max_patch = patch
+                    max_MSE = similarity
+
+                self.weights[i] += similarity
+                amountAdded += similarity
                 noise0 = np.random.normal(0, self.sigma, 1)
                 noise1 = np.random.normal(0, self.sigma, 1)
 
-                # if should_print:print "noise0: ", noise0, "  noise1: ", noise1
-
                 self.particles[i] = (int(self.particles[i][0] + noise0), int(self.particles[i][1] + noise1))
-                # self.particles[i][1] = noise2
+
+
+        self.count += 1
 
         self.weights /= amountAdded
 
@@ -200,8 +208,11 @@ def get_rect(point, shape_needed):
 
     return x, y, h, w
 
-def calc_mse(template, patch):
-    return ((template - patch) ** 2).mean(axis=None)
+def calc_similarity(template, patch, sigma):
+    mean_std_err = ((template - patch) ** 2).mean(axis=None).astype(np.float)
+    similarity = math.exp(-mean_std_err / (2.0 * (sigma **2)))
+
+    return similarity
 
 
 class AppearanceModelPF(ParticleFilter):
@@ -310,12 +321,16 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
             break
 
 def create_simple_frame(frame):
-    # Gray
-    # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float)
+    weighted = False
 
-    # Weighted vals
-    b, g, r = cv2.split(frame)
-    frame = (b * 0.3) + (g * 0.58) + (r * 0.12)
+    if weighted:
+        # Weighted vals
+        b, g, r = cv2.split(frame)
+        frame = (b * 0.3) + (g * 0.58) + (r * 0.12)
+    else:
+        # Gray
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float)
+
 
     return frame
 
