@@ -40,67 +40,42 @@ class ParticleFilter(object):
         #weights - same indicies as the particles (e.g. weight[3] applies to particles[3])
         #init weights to be uniform
         self.weights = np.ones(self.num_particles, dtype=np.float) / self.num_particles
-        # self.weights = []
 
-        start_near_temp = True
+        start_near_temp = kwargs.get('start_near_temp', True)
         buf = 30
-        # x_range = np.arange(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf).astype(np.int)
-        # y_range = np.arange(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf).astype(np.int)
-        # if should_print: print 'xrange', x_range
-        # if should_print: print 'yrange', y_range
         for i in range(0,self.num_particles):
             #select a random (x,y)
             frame_height = frame.shape[0]
             frame_width = frame.shape[1]
             if start_near_temp:
-                self.particles.append((randint(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf),
-                                       randint(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf)))
+                self.particles.append((randint(kwargs.get('x') - buf, kwargs.get('x') + kwargs.get('w') + buf),
+                                       randint(kwargs.get('y') - buf, kwargs.get('y') + kwargs.get('h') + buf)))
             else:
                 self.particles.append((randint(0, frame_width), randint(0, frame_height)))
 
+    def calc_similarity(self, template, patch, sigma):
+        mean_std_err = ((template - patch) ** 2).mean(axis=None).astype(np.float)
+        similarity = math.exp(-mean_std_err / (2.0 * (sigma **2)))
+
+        return similarity
+
 
     def re_sample(self):
-        # if should_print:
-        #     print "sum weights", sum(self.weights)
-        #     print "min", min(self.weights)
-        #     print "max", max(self.weights)
-
-
-        weighted_rand_particles = np.random.multinomial(self.num_particles, self.weights, size=1)[0]
-        # if should_print: print "sum weighted rand parts", sum(weighted_rand_particles)
         new_particles = []
+        new_weights = []
+
+        # protect ourselves
+        self.weights /= sum(self.weights)
+        weighted_rand_particles = np.random.multinomial(self.num_particles, self.weights, size=1)[0]
+
         for i in range(self.num_particles):
             for num_parts in range(weighted_rand_particles[i]):
                 new_particles.append(self.particles[i])
-                # if should_print: print "len new_parts", len(new_particles)
+                new_weights.append(self.weights[i])
 
         self.particles = new_particles
-        # Do we actually want to reset the weigts?
-        self.weights = np.ones(self.num_particles, dtype=np.float) / self.num_particles
+        self.weights = new_weights / sum(new_weights)
 
-        # if should_print:
-        #     print "len weights", len(self.weights)
-        #     print "num parts", len(self.particles)
-        #     print "num_particles", self.num_particles
-
-        # weighted_rand_particles = weighted_rand_particles.astype(np.float) / sum(weighted_rand_particles)
-        # if should_print:
-        #     print "weighted parts", weighted_rand_particles
-        #
-        # self.weights = weighted_rand_particles
-        # new_particles = []
-        # new_weights = []
-        # avg_weight = np.average(weighted_rand_particles)
-        # for i in range(self.num_particles):
-        #     weight = weighted_rand_particles[i]
-        #     if weight >= avg_weight:
-        #         new_particles.append(self.particles[i])
-        #         new_weights.append(self.weights[i])
-        # self.particles = new_particles
-        # self.weights = np.asarray(new_weights)
-        # if should_print:
-        #     print "weights: ", self.weights
-        # self.num_particles = len(self.particles)
 
     def process(self, frame):
         """Process a frame (image) of video and update filter state.
@@ -110,13 +85,6 @@ class ParticleFilter(object):
             frame: color BGR uint8 image of current video frame, values in [0, 255]
         """
 
-        # print self.particles
-        # print self.num_particles
-        # print self.weights
-
-        #sample particles based on weights
-        # newParticles = np.random.choice(self.num_particles, self.num_particles, True, self.weights)
-
         #for each particle,
         #get frame centered at that point
         #calc MSE with the template
@@ -125,6 +93,8 @@ class ParticleFilter(object):
         #create noise1 & noise2 - noise = np.random.normal(mu, sigma, 1)
         #add noise to x, add noise to y
         #normalize all weights by amount added
+
+        self.re_sample()
 
         amountAdded = 0.0
         for i in range(0, self.num_particles):
@@ -139,7 +109,7 @@ class ParticleFilter(object):
             # ignore patches at the edges of the image
             if patch.shape == self.template.shape:
 
-                similarity = calc_similarity(self.template, patch, self.sigma)
+                similarity = self.calc_similarity(self.template, patch, self.sigma)
 
                 self.weights[i] += similarity
                 amountAdded += similarity
@@ -151,15 +121,11 @@ class ParticleFilter(object):
 
         if amountAdded > 0:
             self.weights /= amountAdded
-            self.weights /= sum(self.weights)
-
-        self.re_sample()
 
         pass  # TODO: Your code here - use the frame as a new observation (measurement) and update model
 
     def render(self, frame_out):
         """Visualize current particle filter state.
-
 
         Parameters
         ----------
@@ -206,13 +172,6 @@ def get_rect(point, shape_needed):
 
     return x, y, h, w
 
-def calc_similarity(template, patch, sigma):
-    mean_std_err = ((template - patch) ** 2).mean(axis=None).astype(np.float)
-    similarity = math.exp(-mean_std_err / (2.0 * (sigma **2)))
-
-    return similarity
-
-
 class AppearanceModelPF(ParticleFilter):
     """A variation of particle filter tracker that updates its appearance model over time."""
 
@@ -234,7 +193,7 @@ class AppearanceModelPF(ParticleFilter):
             # ignore patches at the edges of the image
             if patch.shape == self.template.shape:
 
-                similarity = calc_similarity(self.template, patch, self.sigma)
+                similarity = self.calc_similarity(self.template, patch, self.sigma)
                 if similarity > max_sim:
                     best_patch = patch
                     max_sim = similarity
@@ -254,7 +213,32 @@ class AppearanceModelPF(ParticleFilter):
 
         self.re_sample()
 
-        # TODO: Override render() if desired (shouldn't have to, ideally)
+    # TODO: Override render() if desired (shouldn't have to, ideally)
+
+
+class HistogramPF(ParticleFilter):
+    """A variation of particle filter tracker that updates its appearance model over time."""
+
+    def __init__(self, frame, template, **kwargs):
+        """Initialize appearance model particle filter object (parameters same as ParticleFilter)."""
+        super(HistogramPF, self).__init__(frame, template, **kwargs)  # call base class constructor
+
+    def calc_hist(self, image):
+        hist = cv2.calcHist([image.astype(np.uint8)], [0], None, [8],[0, 255])
+        hist = cv2.normalize(hist).flatten()
+
+        return hist
+
+    def calc_similarity(self, template, patch, sigma):
+        template_hist = self.calc_hist(template)
+        patch_hist = self.calc_hist(patch)
+        # smaller val indicates more similar for chi-squared. So, flip it
+        sim = 1.0 / cv2.compareHist(template_hist, patch_hist, cv2.cv.CV_COMP_CHISQR)
+
+        # sim = cv2.compareHist(template_hist, patch_hist, cv2.cv.CV_COMP_CORREL)
+
+        return sim
+
 
 
 # Driver/helper code
@@ -302,6 +286,13 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
     frame_num = 0
     count = 0
 
+    fps = 60
+    #capSize = gray.shape # this is the size of my source video
+    size = (int(video.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)),int(video.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)))
+    fourcc = cv2.cv.CV_FOURCC('m', 'p', '4', 'v') # note the lower case
+    vout = cv2.VideoWriter()
+    success = vout.open('output/output.mov',fourcc,fps,size,True)
+
     # Loop over video (till last frame or Ctrl+C is pressed)
     while True:
         try:
@@ -342,6 +333,9 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
             # Process frame
             pf.process(frame)  # TODO: implement this!
 
+            pf.render(color_frame)
+            vout.write(color_frame)
+
             # Render and save output, if indicated
             if kwargs['show_img']:
                 if (count % 10) == 0:
@@ -352,6 +346,7 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
                 if frame_num in save_frames:
                     pf.render(color_frame)
                     cv2.imwrite(save_frames[frame_num], color_frame)
+
 
             # Update frame number
             frame_num += 1
@@ -373,28 +368,17 @@ def create_simple_frame(frame):
     return frame
 
 def one_a_to_d():
-    run_particle_filter(ParticleFilter,  # particle filter model class
+    run_particle_filter(HistogramPF, #ParticleFilter,  # particle filter model class
         os.path.join(input_dir, "pres_debate.avi"),  # input video
         get_template_rect(os.path.join(input_dir, "pres_debate.txt")),  # suggested template window (dict)
         # Note: To specify your own window, directly pass in a dict: {'x': x, 'y': y, 'w': width, 'h': height}
         {
             'template': os.path.join(output_dir, 'ps7-1-a-1.png'),
-            0: os.path.join(output_dir, '0.png'),
-            25: os.path.join(output_dir, '25.png'),
-            50: os.path.join(output_dir, '50.png'),
-            75: os.path.join(output_dir, '75.png'),
-            100: os.path.join(output_dir, '100.png'),
-            125: os.path.join(output_dir, '125.png'),
-            150: os.path.join(output_dir, '150.png'),
-            175: os.path.join(output_dir, '175.png'),
-            200: os.path.join(output_dir, '200.png'),
-            225: os.path.join(output_dir, '225.png'),
-            250: os.path.join(output_dir, '250.png')
-            # 28: os.path.join(output_dir, 'ps7-1-a-2.png'),
-            # 84: os.path.join(output_dir, 'ps7-1-a-3.png'),
+            28: os.path.join(output_dir, 'ps7-1-a-2.png'),
+            84: os.path.join(output_dir, 'ps7-1-a-3.png'),
             # 144: os.path.join(output_dir, 'ps7-1-a-4.png')
         },  # frames to save, mapped to filenames, and 'template' if desired
-        num_particles=500, sigma=10,  measurement_noise=0.2)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
+        num_particles=200, sigma=20,  measurement_noise=0.05, show_img=False, start_near_temp=False)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
     # 1b
     # TODO: Repeat 1a, but vary template window size and discuss trade-offs (no output images required)
@@ -437,7 +421,7 @@ def two_a():
 def two_b():
     # TODO: Run AppearanceModelPF on noisy_debate.avi, tweak parameters to track hand up to frame 140
     run_particle_filter(AppearanceModelPF,
-                        os.path.join(input_dir, "pres_debate.avi"),
+                        os.path.join(input_dir, "noisy_debate.avi"),
                         get_template_rect(os.path.join(input_dir, "hand.txt")),
                         {
                             'template': os.path.join(output_dir, 'ps7-2-b-1.png'),
@@ -451,13 +435,13 @@ def main():
     """ Note: Comment out parts of this code as necessary"""
 
     """ 1a """
-    # one_a_to_d()
+    one_a_to_d()
 
     """ 1e """
     # one_e()
 
     """ 2a """
-    two_a()
+    # two_a()
 
     """ 2b """
     # two_b()
