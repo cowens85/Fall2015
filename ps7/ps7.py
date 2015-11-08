@@ -390,7 +390,7 @@ def one_e():
 def two_a():
     # TODO: Implement AppearanceModelPF (derived from ParticleFilter)
     # TODO: Run it on pres_debate.avi to track Romney's left hand, tweak parameters to track up to frame 140
-    run_particle_filter(ParticleFilter,
+    run_particle_filter(AppearanceModelPF,
                         os.path.join(input_dir, "pres_debate.avi"),
                         get_template_rect(os.path.join(input_dir, "hand.txt")),
                         {
@@ -404,7 +404,7 @@ def two_a():
 
 def two_b():
     # TODO: Run AppearanceModelPF on noisy_debate.avi, tweak parameters to track hand up to frame 140
-    run_particle_filter(ParticleFilter,
+    run_particle_filter(AppearanceModelPF,
                         os.path.join(input_dir, "pres_debate.avi"),
                         get_template_rect(os.path.join(input_dir, "hand.txt")),
                         {
