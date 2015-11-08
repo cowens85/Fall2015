@@ -308,7 +308,7 @@ def one_a_to_d():
             84: os.path.join(output_dir, 'ps7-1-a-3.png'),
             144: os.path.join(output_dir, 'ps7-1-a-4.png')
         },  # frames to save, mapped to filenames, and 'template' if desired
-        num_particles=50, sigma=10,  measurement_noise=0.2)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
+        num_particles=50, sigma=20,  measurement_noise=0.2)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
     # 1b
     # TODO: Repeat 1a, but vary template window size and discuss trade-offs (no output images required)
