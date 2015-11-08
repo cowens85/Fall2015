@@ -383,17 +383,17 @@ def one_e():
             32: os.path.join(output_dir, 'ps7-1-e-2.png'),
             46: os.path.join(output_dir, 'ps7-1-e-3.png')
         },
-        num_particles=50)  # TODO: Tune parameters so that model can continuing tracking through noise
+        num_particles=500, sigma=10,  measurement_noise=0.2)  # TODO: Tune parameters so that model can continuing tracking through noise
 
 
 def main():
     """ Note: Comment out parts of this code as necessary"""
 
     """ 1a """
-    one_a_to_d()
+    # one_a_to_d()
 
     """ 1e """
-    # one_e()
+    one_e()
 
     """ 2a """
     # TODO: Implement AppearanceModelPF (derived from ParticleFilter)
