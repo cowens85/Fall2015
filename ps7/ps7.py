@@ -25,7 +25,7 @@ class ParticleFilter(object):
             kwargs: keyword arguments needed by particle filter model, including:
             - num_particles: number of particles
         """
-        self.num_particles = kwargs.get('num_particles', 300)  # extract num_particles (default: 100)
+        self.num_particles = kwargs.get('num_particles', 1000)  # extract num_particles (default: 100)
         # TODO: Your code here - extract any additional keyword arguments you need and initialize state
         self.sigma = kwargs.get('sigma', 10)
 
@@ -38,18 +38,42 @@ class ParticleFilter(object):
         #weights - same indicies as the particles (e.g. weight[3] applies to particles[3])
         #init weights to be uniform
         self.weights = np.ones(self.num_particles,dtype=np.float) / self.num_particles
+        if should_print:
+            print "sum weights", sum(self.weights)
         # self.weights = []
 
-        buf = 10
+        # buf = 10
         # x_range = np.arange(kwargs.get('x') - buf,kwargs.get('x') + kwargs.get('w') + buf).astype(np.int)
         # y_range = np.arange(kwargs.get('y') - buf,kwargs.get('y') + kwargs.get('h') + buf).astype(np.int)
         # if should_print: print 'xrange', x_range
         # if should_print: print 'yrange', y_range
         for i in range(0,self.num_particles):
             #select a random (x,y)
-            self.particles.append((np.random.choice(self.num_particles, 1)[0], np.random.choice(self.num_particles, 1)[0]))
+            self.particles.append((np.random.choice(frame.shape[1], 1)[0], np.random.choice(frame.shape[0], 1)[0]))
             # self.weights.append(1.0/self.num_particles)
 
+
+    def re_sample(self):
+        if should_print:
+            print "sum weights", sum(self.weights)
+            print "min", min(self.weights)
+            print "max", max(self.weights)
+
+
+        weighted_rand_particles = np.random.choice(self.num_particles, self.num_particles, replace=True, p=self.weights)
+        new_particles = []
+        new_weights = []
+        avg_weight = np.average(weighted_rand_particles)
+        for i in range(self.num_particles):
+            weight = weighted_rand_particles[i]
+            if weight >= avg_weight:
+                new_particles.append(self.particles[i])
+                new_weights.append(self.weights[i])
+        self.particles = new_particles
+        self.weights = np.asarray(new_weights)
+        if should_print:
+            print "weights: ", self.weights
+        self.num_particles = len(self.particles)
 
     def process(self, frame):
         """Process a frame (image) of video and update filter state.
@@ -75,15 +99,15 @@ class ParticleFilter(object):
         #add noise to x, add noise to y
         #normalize all weights by amount added
 
-        amountAdded = 0
+        amountAdded = 0.0
         for i in range(0, self.num_particles):
-            if should_print : print "particles", self.particles[i]
+            # if should_print : print "particles", self.particles[i]
             patch = get_patch(frame, self.particles[i], self.template.shape)
 
-            if should_print :
-                print "template:", self.template.shape
-                print "frame:", frame.shape
-                print "patch:", patch.shape
+            # if should_print :
+            #     print "template:", self.template.shape
+            #     print "frame:", frame.shape
+            #     print "patch:", patch.shape
 
             if patch.shape == self.template.shape:
                 MSE = calc_mse(self.template, patch)
@@ -92,12 +116,14 @@ class ParticleFilter(object):
                 noise0 = np.random.normal(0, self.sigma, 1)
                 noise1 = np.random.normal(0, self.sigma, 1)
 
-                if should_print:print "noise0: ", noise0, "  noise1: ", noise1
+                # if should_print:print "noise0: ", noise0, "  noise1: ", noise1
 
-                self.particles[i] = (int(self.particles[i][0] + noise1), int(self.particles[i][1] + noise1))
+                self.particles[i] = (int(self.particles[i][0] + noise0), int(self.particles[i][1] + noise1))
                 # self.particles[i][1] = noise2
 
         self.weights /= amountAdded
+
+        self.re_sample()
 
         pass  # TODO: Your code here - use the frame as a new observation (measurement) and update model
 
@@ -128,8 +154,8 @@ class ParticleFilter(object):
 def get_patch(frame, particle, shape_needed):
     x, y, w, h = get_rect(particle, shape_needed)
 
-    if should_print:
-        print "y,h,x,w", y, h, x, w
+    # if should_print:
+    #     print "y,h,x,w", y, h, x, w
 
     return frame[y:y + h, x:x + w]
 
