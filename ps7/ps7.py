@@ -135,6 +135,9 @@ class ParticleFilter(object):
 
             # ignore patches at the edges of the image
             if patch.shape == self.template.shape:
+                cv2.imshow('template', self.template)
+                cv2.imshow('patch', self.patch)
+                cv2.waitKey('8000')
                 MSE = calc_mse(self.template, patch)
                 self.weights[i] += MSE
                 amountAdded += MSE
