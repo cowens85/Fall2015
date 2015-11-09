@@ -368,7 +368,7 @@ def create_simple_frame(frame):
     return frame
 
 def one_a_to_d():
-    run_particle_filter(HistogramPF, #ParticleFilter,  # particle filter model class
+    run_particle_filter(ParticleFilter,  # particle filter model class
         os.path.join(input_dir, "pres_debate.avi"),  # input video
         get_template_rect(os.path.join(input_dir, "pres_debate.txt")),  # suggested template window (dict)
         # Note: To specify your own window, directly pass in a dict: {'x': x, 'y': y, 'w': width, 'h': height}
@@ -376,7 +376,7 @@ def one_a_to_d():
             'template': os.path.join(output_dir, 'ps7-1-a-1.png'),
             28: os.path.join(output_dir, 'ps7-1-a-2.png'),
             84: os.path.join(output_dir, 'ps7-1-a-3.png'),
-            # 144: os.path.join(output_dir, 'ps7-1-a-4.png')
+            144: os.path.join(output_dir, 'ps7-1-a-4.png')
         },  # frames to save, mapped to filenames, and 'template' if desired
         num_particles=200, sigma=20,  measurement_noise=0.05, show_img=False, start_near_temp=False)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
@@ -393,14 +393,14 @@ def one_a_to_d():
 
 def one_e():
     run_particle_filter(ParticleFilter,
-        os.path.join(input_dir, "noisy_debate.avi"),
-        get_template_rect(os.path.join(input_dir, "noisy_debate.txt")),
-        {
-            14: os.path.join(output_dir, 'ps7-1-e-1.png'),
-            32: os.path.join(output_dir, 'ps7-1-e-2.png'),
-            46: os.path.join(output_dir, 'ps7-1-e-3.png')
-        },
-        num_particles=500, sigma=15,  measurement_noise=0.1, show_img=True)  # TODO: Tune parameters so that model can continuing tracking through noise
+                        os.path.join(input_dir, "noisy_debate.avi"),
+                        get_template_rect(os.path.join(input_dir, "noisy_debate.txt")),
+                        {
+                            14: os.path.join(output_dir, 'ps7-1-e-1.png'),
+                            32: os.path.join(output_dir, 'ps7-1-e-2.png'),
+                            46: os.path.join(output_dir, 'ps7-1-e-3.png')
+                        },
+                        num_particles=500, sigma=15,  measurement_noise=0.1, show_img=False)  # TODO: Tune parameters so that model can continuing tracking through noise
 
 
 def two_a():
@@ -415,7 +415,7 @@ def two_a():
                             50: os.path.join(output_dir, 'ps7-2-a-3.png'),
                             140: os.path.join(output_dir, 'ps7-2-a-4.png')
                         },
-                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=True)
+                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=False)
 
 
 def two_b():
@@ -429,13 +429,39 @@ def two_b():
                             50: os.path.join(output_dir, 'ps7-2-b-3.png'),
                             140: os.path.join(output_dir, 'ps7-2-b-4.png')
                         },
-                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=True)
+                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=False)
+
+def three_a():
+    run_particle_filter(HistogramPF,
+                        os.path.join(input_dir, "pres_debate.avi"),  # input video
+                        get_template_rect(os.path.join(input_dir, "pres_debate.txt")),  # suggested template window (dict)
+                        # Note: To specify your own window, directly pass in a dict: {'x': x, 'y': y, 'w': width, 'h': height}
+                        {
+                            'template': os.path.join(output_dir, 'ps7-3-a-1.png'),
+                            28: os.path.join(output_dir, 'ps7-3-a-2.png'),
+                            84: os.path.join(output_dir, 'ps7-3-a-3.png'),
+                            144: os.path.join(output_dir, 'ps7-1-a-4.png')
+                        },  # frames to save, mapped to filenames, and 'template' if desired
+                        num_particles=200, sigma=20,  measurement_noise=0.05, show_img=False, start_near_temp=True)
+
+def three_b():
+    run_particle_filter(HistogramPF,
+                        os.path.join(input_dir, "noisy_debate.avi"),
+                        get_template_rect(os.path.join(input_dir, "hand.txt")),
+                        {
+                            'template': os.path.join(output_dir, 'ps7-2-b-1.png'),
+                            15: os.path.join(output_dir, 'ps7-2-b-2.png'),
+                            50: os.path.join(output_dir, 'ps7-2-b-3.png'),
+                            140: os.path.join(output_dir, 'ps7-2-b-4.png')
+                        },
+                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=False)
+
 
 def main():
     """ Note: Comment out parts of this code as necessary"""
 
     """ 1a """
-    one_a_to_d()
+    # one_a_to_d()
 
     """ 1e """
     # one_e()
@@ -447,6 +473,7 @@ def main():
     # two_b()
 
     # EXTRA CREDIT
+    three_a()
     # 3: Use color histogram distance instead of MSE (you can implement a derived class similar to AppearanceModelPF)
     # 4: Implement a more sophisticated model to deal with occlusions and size/perspective changes
 
