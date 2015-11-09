@@ -119,6 +119,7 @@ class ParticleFilter(object):
 
         if amountAdded > 0:
             self.weights /= amountAdded
+            self.weights /= sum(self.weights)
 
         pass  # TODO: Your code here - use the frame as a new observation (measurement) and update model
 
@@ -334,9 +335,12 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
 
             # Render and save output, if indicated
             if kwargs['show_img']:
-                if (count % 10) == 0:
+                if count == 140:
+                # if (count % 10) == 0:
                     # pf.render(color_frame)
-                    cv2.imshow('Frame ' + str(count), color_frame)
+                    cv2.imshow('num parts (' + str(kwargs['num_particles']) +') sigma (' + str(kwargs['sigma']) + ') Frame: ' + str(count), color_frame)
+                    if count > 0:
+                        cv2.destroyWindow('num parts (' + str(kwargs['num_particles']) +') sigma (' + str(kwargs['sigma']) + ') Frame: ' + str(count - 1))
                 count += 1
             else:
                 if frame_num in save_frames:
@@ -363,7 +367,7 @@ def create_simple_frame(frame):
 
     return frame
 
-def one_a_to_d():
+def one_a(show_img=False):
     run_particle_filter(ParticleFilter,  # particle filter model class
         os.path.join(input_dir, "pres_debate.avi"),  # input video
         get_template_rect(os.path.join(input_dir, "pres_debate.txt")),  # suggested template window (dict)
@@ -374,20 +378,55 @@ def one_a_to_d():
             84: os.path.join(output_dir, 'ps7-1-a-3.png'),
             144: os.path.join(output_dir, 'ps7-1-a-4.png')
         },  # frames to save, mapped to filenames, and 'template' if desired
-        num_particles=200, sigma=10,  measurement_noise=0.05, show_img=False, start_near_temp=True)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
+        num_particles=200, sigma=10,  measurement_noise=0.05, show_img=show_img, start_near_temp=True)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
+
+def one_b(show_img=True):
     # 1b
     # TODO: Repeat 1a, but vary template window size and discuss trade-offs (no output images required)
+    rect = {'y': 175.0, 'x': 320.0, 'w': 103.0, 'h': 129.0}
+    rect['y'] -= 60
+    rect['x'] -= 60
+    rect['w'] += 60
+    rect['h'] += 60
+    run_particle_filter(ParticleFilter,  # particle filter model class
+        os.path.join(input_dir, "pres_debate.avi"),  # input video
+        rect,  # suggested template window (dict)
+        # Note: To specify your own window, directly pass in a dict: {'x': x, 'y': y, 'w': width, 'h': height}
+        {
+            'template': os.path.join(output_dir, 'ps7-1-a-1.png'),
+            28: os.path.join(output_dir, 'ps7-1-a-2.png'),
+            84: os.path.join(output_dir, 'ps7-1-a-3.png'),
+            144: os.path.join(output_dir, 'ps7-1-a-4.png')
+        },  # frames to save, mapped to filenames, and 'template' if desired
+        num_particles=200, sigma=10,  measurement_noise=0.05, show_img=show_img, start_near_temp=True)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
+
+def one_c(show_img=True):
     # 1c
     # TODO: Repeat 1a, but vary the sigma_MSE parameter (no output images required)
-    # Note: To add a parameter, simply pass it in here as a keyword arg and extract it back in __init__()
+    for sigma in range(20, 0, -5):
+        run_particle_filter(ParticleFilter,  # particle filter model class
+            os.path.join(input_dir, "pres_debate.avi"),  # input video
+            get_template_rect(os.path.join(input_dir, "pres_debate.txt")),  # suggested template window (dict)
+            # Note: To specify your own window, directly pass in a dict: {'x': x, 'y': y, 'w': width, 'h': height}
+            {},  # frames to save, mapped to filenames, and 'template' if desired
+            num_particles=200, sigma=sigma,  measurement_noise=0.05, show_img=show_img, start_near_temp=True)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
+
+def one_d(show_img=True):
     # 1d
     # TODO: Repeat 1a, but try to optimize (minimize) num_particles (no output images required)
+    for num_particles in range(25, 125, 10):
+        run_particle_filter(ParticleFilter,  # particle filter model class
+            os.path.join(input_dir, "pres_debate.avi"),  # input video
+            get_template_rect(os.path.join(input_dir, "pres_debate.txt")),  # suggested template window (dict)
+            # Note: To specify your own window, directly pass in a dict: {'x': x, 'y': y, 'w': width, 'h': height}
+            {},  # frames to save, mapped to filenames, and 'template' if desired
+            num_particles=num_particles, sigma=15,  measurement_noise=0.05, show_img=show_img, start_near_temp=False)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
 
-def one_e():
+def one_e(show_img=False):
     run_particle_filter(ParticleFilter,
                         os.path.join(input_dir, "noisy_debate.avi"),
                         get_template_rect(os.path.join(input_dir, "noisy_debate.txt")),
@@ -396,10 +435,10 @@ def one_e():
                             32: os.path.join(output_dir, 'ps7-1-e-2.png'),
                             46: os.path.join(output_dir, 'ps7-1-e-3.png')
                         },
-                        num_particles=500, sigma=15,  measurement_noise=0.1, show_img=False, start_near_temp=False)  # TODO: Tune parameters so that model can continuing tracking through noise
+                        num_particles=500, sigma=15,  measurement_noise=0.1, show_img=show_img, start_near_temp=False)  # TODO: Tune parameters so that model can continuing tracking through noise
 
 
-def two_a():
+def two_a(show_img=False):
     # TODO: Implement AppearanceModelPF (derived from ParticleFilter)
     # TODO: Run it on pres_debate.avi to track Romney's left hand, tweak parameters to track up to frame 140
     run_particle_filter(AppearanceModelPF,
@@ -411,10 +450,10 @@ def two_a():
                             50: os.path.join(output_dir, 'ps7-2-a-3.png'),
                             140: os.path.join(output_dir, 'ps7-2-a-4.png')
                         },
-                        num_particles=500, sigma=15, measurement_noise=0.01, show_img=False, start_near_temp=True)
+                        num_particles=500, sigma=15, measurement_noise=0.01, show_img=show_img, start_near_temp=True)
 
 
-def two_b():
+def two_b(show_img=False):
     # TODO: Run AppearanceModelPF on noisy_debate.avi, tweak parameters to track hand up to frame 140
     run_particle_filter(AppearanceModelPF,
                         os.path.join(input_dir, "noisy_debate.avi"),
@@ -425,7 +464,7 @@ def two_b():
                             50: os.path.join(output_dir, 'ps7-2-b-3.png'),
                             140: os.path.join(output_dir, 'ps7-2-b-4.png')
                         },
-                        num_particles=500, sigma=5, measurement_noise=0.025, show_img=False, start_near_temp=True)
+                        num_particles=500, sigma=5, measurement_noise=0.025, show_img=show_img, start_near_temp=True)
     # rect = get_template_rect(os.path.join(input_dir, "hand.txt"))
     # for i in range(1, 15):
     #     sigma = int(i)
@@ -439,7 +478,7 @@ def two_b():
     #                     },
     #                     num_particles=500, sigma=sigma, measurement_noise=0.025, show_img=False, start_near_temp=True)
 
-def three_a():
+def three_a(show_img=False):
     run_particle_filter(HistogramPF,
                         os.path.join(input_dir, "pres_debate.avi"),  # input video
                         get_template_rect(os.path.join(input_dir, "pres_debate.txt")),  # suggested template window (dict)
@@ -450,9 +489,9 @@ def three_a():
                             84: os.path.join(output_dir, 'ps7-3-a-3.png'),
                             144: os.path.join(output_dir, 'ps7-1-a-4.png')
                         },  # frames to save, mapped to filenames, and 'template' if desired
-                        num_particles=200, sigma=20,  measurement_noise=0.05, show_img=False, start_near_temp=False)
+                        num_particles=200, sigma=20,  measurement_noise=0.05, show_img=show_img, start_near_temp=False)
 
-def three_b():
+def three_b(show_img=False):
     run_particle_filter(HistogramPF,
                         os.path.join(input_dir, "noisy_debate.avi"),
                         get_template_rect(os.path.join(input_dir, "hand.txt")),
@@ -462,20 +501,28 @@ def three_b():
                             50: os.path.join(output_dir, 'ps7-3-b-3.png'),
                             140: os.path.join(output_dir, 'ps7-3-b-4.png')
                         },
-                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=False, start_near_temp=True)
+                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=show_img, start_near_temp=True)
 
 
 def main():
     """ Note: Comment out parts of this code as necessary"""
-
     """ 1a """
-    one_a_to_d()
+    # one_a()
+
+    """ 1b """
+    # one_b()
+
+    """ 1c """
+    # one_c()
+
+    """ 1d """
+    # one_d()
 
     """ 1e """
     # one_e()
 
     """ 2a """
-    # two_a()
+    two_a()
 
     """ 2b """
     # two_b()
