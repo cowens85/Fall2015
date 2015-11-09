@@ -180,10 +180,11 @@ class AppearanceModelPF(ParticleFilter):
         """Initialize appearance model particle filter object (parameters same as ParticleFilter)."""
         super(AppearanceModelPF, self).__init__(frame, template, **kwargs)  # call base class constructor
         # TODO: Your code here - additional initialization steps, keyword arguments
+        self.alpha = kwargs.get('kwargs', 0.3)
 
     # TODO: Override process() to implement appearance model update
     def process(self, frame):
-        alpha = 0.3
+        alpha = self.alpha
         amountAdded = 0.0
         best_patch = []
         max_sim = 0
@@ -234,11 +235,13 @@ class HistogramPF(ParticleFilter):
         template_hist = self.calc_hist(template)
         patch_hist = self.calc_hist(patch)
         # smaller val indicates more similar for chi-squared. So, flip it
-        sim = 1.0 / cv2.compareHist(template_hist, patch_hist, cv2.cv.CV_COMP_CHISQR)
+        # sim = cv2.compareHist(template_hist, patch_hist, cv2.cv.CV_COMP_CHISQR)
+        # similarity = math.exp(-sim / (2.0 * (sigma **2)))
+        similarity = 1.0 / cv2.compareHist(template_hist, patch_hist, cv2.cv.CV_COMP_CHISQR)
 
         # sim = cv2.compareHist(template_hist, patch_hist, cv2.cv.CV_COMP_CORREL)
 
-        return sim
+        return similarity
 
 
 
@@ -287,7 +290,6 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
     template = None
     pf = None
     frame_num = 0
-    count = 0
 
     fps = 60
     #capSize = gray.shape # this is the size of my source video
@@ -335,14 +337,16 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
 
             # Render and save output, if indicated
             if kwargs['show_img']:
-                if count == 140:
-                # if (count % 10) == 0:
+                # if count == 140:
+                if (frame_num % 10) == 0:
                     # pf.render(color_frame)
-                    cv2.imshow('num parts (' + str(kwargs['num_particles']) +') sigma (' + str(kwargs['sigma']) + ') Frame: ' + str(count), color_frame)
-                    if count > 0:
-                        cv2.destroyWindow('num parts (' + str(kwargs['num_particles']) +') sigma (' + str(kwargs['sigma']) + ') Frame: ' + str(count - 1))
-                count += 1
+                    cv2.imshow('num parts (' + str(kwargs['num_particles']) +') sigma (' + str(kwargs['sigma']) + ') Frame: ' + str(frame_num), color_frame)
+                    if frame_num > 0:
+                        cv2.destroyWindow('num parts (' + str(kwargs['num_particles']) +') sigma (' + str(kwargs['sigma']) + ') Frame: ' + str(frame_num - 1))
             else:
+                # if frame_num == 15:
+                #     cv2.imwrite("output/frame.png", color_frame)
+                #     exit()
                 if frame_num in save_frames:
                     # pf.render(color_frame)
                     cv2.imwrite(save_frames[frame_num], color_frame)
@@ -393,12 +397,7 @@ def one_b(show_img=True):
         os.path.join(input_dir, "pres_debate.avi"),  # input video
         rect,  # suggested template window (dict)
         # Note: To specify your own window, directly pass in a dict: {'x': x, 'y': y, 'w': width, 'h': height}
-        {
-            'template': os.path.join(output_dir, 'ps7-1-a-1.png'),
-            28: os.path.join(output_dir, 'ps7-1-a-2.png'),
-            84: os.path.join(output_dir, 'ps7-1-a-3.png'),
-            144: os.path.join(output_dir, 'ps7-1-a-4.png')
-        },  # frames to save, mapped to filenames, and 'template' if desired
+        {},  # frames to save, mapped to filenames, and 'template' if desired
         num_particles=200, sigma=10,  measurement_noise=0.05, show_img=show_img, start_near_temp=True)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
 
@@ -455,16 +454,29 @@ def two_a(show_img=False):
 
 def two_b(show_img=False):
     # TODO: Run AppearanceModelPF on noisy_debate.avi, tweak parameters to track hand up to frame 140
+    # for i in range(5):
+    #     run_particle_filter(AppearanceModelPF,
+    #                     os.path.join(input_dir, "noisy_debate.avi"),
+    #                     get_template_rect(os.path.join(input_dir, "hand.txt")),
+    #                     {
+    #                         'template': os.path.join(output_dir, 'ps7-2-b-1.png'),
+    #                         15: os.path.join(output_dir, "2b/" + str(i) + '-ps7-2-b-2.png'),
+    #                         50: os.path.join(output_dir, "2b/" + str(i) + '-ps7-2-b-3.png'),
+    #                         140: os.path.join(output_dir, "2b/" + str(i) + '-ps7-2-b-4.png')
+    #                     },
+    #                     num_particles=300, sigma=25, measurement_noise=0.8, show_img=show_img, start_near_temp=True)
+
     run_particle_filter(AppearanceModelPF,
                         os.path.join(input_dir, "noisy_debate.avi"),
-                        get_template_rect(os.path.join(input_dir, "hand.txt")),
+                        get_template_rect(os.path.join(input_dir, "fuzzy_hand.txt")),
                         {
                             'template': os.path.join(output_dir, 'ps7-2-b-1.png'),
                             15: os.path.join(output_dir, 'ps7-2-b-2.png'),
                             50: os.path.join(output_dir, 'ps7-2-b-3.png'),
                             140: os.path.join(output_dir, 'ps7-2-b-4.png')
                         },
-                        num_particles=500, sigma=5, measurement_noise=0.025, show_img=show_img, start_near_temp=True)
+                        num_particles=500, sigma=10, measurement_noise=0.2, alpha=0.5, show_img=show_img, start_near_temp=True)
+
     # rect = get_template_rect(os.path.join(input_dir, "hand.txt"))
     # for i in range(1, 15):
     #     sigma = int(i)
@@ -487,51 +499,51 @@ def three_a(show_img=False):
                             'template': os.path.join(output_dir, 'ps7-3-a-1.png'),
                             28: os.path.join(output_dir, 'ps7-3-a-2.png'),
                             84: os.path.join(output_dir, 'ps7-3-a-3.png'),
-                            144: os.path.join(output_dir, 'ps7-1-a-4.png')
+                            144: os.path.join(output_dir, 'ps7-3-a-4.png')
                         },  # frames to save, mapped to filenames, and 'template' if desired
                         num_particles=200, sigma=20,  measurement_noise=0.05, show_img=show_img, start_near_temp=False)
 
 def three_b(show_img=False):
     run_particle_filter(HistogramPF,
                         os.path.join(input_dir, "noisy_debate.avi"),
-                        get_template_rect(os.path.join(input_dir, "hand.txt")),
+                        get_template_rect(os.path.join(input_dir, "fuzzy_hand.txt")),
                         {
                             'template': os.path.join(output_dir, 'ps7-3-b-1.png'),
                             15: os.path.join(output_dir, 'ps7-3-b-2.png'),
                             50: os.path.join(output_dir, 'ps7-3-b-3.png'),
                             140: os.path.join(output_dir, 'ps7-3-b-4.png')
                         },
-                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=show_img, start_near_temp=True)
+                        num_particles=400, sigma=3, measurement_noise=1.5, show_img=show_img, start_near_temp=True)
 
 
 def main():
     """ Note: Comment out parts of this code as necessary"""
     """ 1a """
-    # one_a()
+    one_a()
 
     """ 1b """
-    # one_b()
+    one_b()
 
     """ 1c """
-    # one_c()
+    one_c()
 
     """ 1d """
-    # one_d()
+    one_d()
 
     """ 1e """
-    # one_e()
+    one_e()
 
     """ 2a """
     two_a()
 
     """ 2b """
-    # two_b()
+    two_b()
 
     # EXTRA CREDIT
     """ 3: Use color histogram distance instead of MSE (you can implement a derived class similar to AppearanceModelPF) """
-    # three_a()
+    three_a()
 
-    # three_b()
+    three_b()
 
 
     # 4: Implement a more sophisticated model to deal with occlusions and size/perspective changes
