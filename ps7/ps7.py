@@ -27,7 +27,7 @@ class ParticleFilter(object):
             kwargs: keyword arguments needed by particle filter model, including:
             - num_particles: number of particles
         """
-        self.num_particles = kwargs.get('num_particles', 1000)  # extract num_particles (default: 100)
+        self.num_particles = kwargs.get('num_particles', 100)  # extract num_particles (default: 100)
         # TODO: Your code here - extract any additional keyword arguments you need and initialize state
         self.sigma = kwargs.get('sigma', 10)
 
@@ -43,15 +43,18 @@ class ParticleFilter(object):
 
         start_near_temp = kwargs.get('start_near_temp', True)
         buf = 30
+        frame_height = frame.shape[0]
+        frame_width = frame.shape[1]
+
         for i in range(0,self.num_particles):
             #select a random (x,y)
-            frame_height = frame.shape[0]
-            frame_width = frame.shape[1]
             if start_near_temp:
                 self.particles.append((randint(kwargs.get('x') - buf, kwargs.get('x') + kwargs.get('w') + buf),
                                        randint(kwargs.get('y') - buf, kwargs.get('y') + kwargs.get('h') + buf)))
             else:
-                self.particles.append((randint(0, frame_width), randint(0, frame_height)))
+                # randint uses the endpoints so subtract 1 from the end
+                self.particles.append((randint(0, frame_width - 1), randint(0, frame_height - 1)))
+
 
     def calc_similarity(self, template, patch, sigma):
         mean_std_err = ((template - patch) ** 2).mean(axis=None).astype(np.float)
@@ -101,11 +104,6 @@ class ParticleFilter(object):
             # if should_print : print "particles", self.particles[i]
             patch = get_patch(frame, self.particles[i], self.template.shape)
 
-            # if should_print :
-            #     print "template:", self.template.shape
-            #     print "frame:", frame.shape
-            #     print "patch:", patch.shape
-
             # ignore patches at the edges of the image
             if patch.shape == self.template.shape:
 
@@ -145,10 +143,14 @@ class ParticleFilter(object):
         sum_dist = 0
         for i in range(self.num_particles):
             part_pt = self.particles[i]
-            sum_dist += math.sqrt((part_pt[0] - u_weighted_mean)**2 + (part_pt[1] - v_weighted_mean)**2)
+            u = part_pt[0]
+            v = part_pt[1]
+            sum_dist += math.sqrt((u - u_weighted_mean)**2 + (v - v_weighted_mean)**2)
+
         radius = int(sum_dist / self.num_particles)
         center = (int(u_weighted_mean), int(v_weighted_mean))
         x, y, h, w = get_rect(center, self.template.shape)
+
         cv2.rectangle(frame_out, (x, y), (x + w, y + h), (0, 255, 0))
         cv2.circle(frame_out, center, radius, (0, 255, 0))
 
@@ -163,12 +165,10 @@ def get_patch(frame, particle, shape_needed):
 
 
 def get_rect(point, shape_needed):
-    #upper left point (ish)
-    upperLeft = point - np.array(shape_needed)/2
-    x = int(upperLeft[0])
-    y = int(upperLeft[1])
     h = int(shape_needed[0])
     w = int(shape_needed[1])
+    x = int(point[0] - (w / 2))
+    y = int(point[1] - (h / 2))
 
     return x, y, h, w
 
@@ -238,6 +238,8 @@ class HistogramPF(ParticleFilter):
         # sim = cv2.compareHist(template_hist, patch_hist, cv2.cv.CV_COMP_CORREL)
 
         return sim
+
+
 
 
 
@@ -321,12 +323,6 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
 
                 if 'template' in save_frames:
                     cv2.imwrite(save_frames['template'], template)
-                    # cv2.rectangle(color_frame, (x, y), (x + w, y + h), (0, 255, 0))
-                    # cv2.imwrite("output/frame.png", color_frame)
-                    # exit()
-                    # cv2.rectangle(color_frame, (x, y), (x + w, y + h), (0, 255, 0))
-                    # cv2.circle(color_frame, (x + w/2, y + h/2), 5, (0, 255, 0))
-                    # cv2.imwrite(save_frames['template'], color_frame)
 
                 pf = pf_class(frame, template, **kwargs)
 
@@ -339,12 +335,12 @@ def run_particle_filter(pf_class, video_filename, template_rect, save_frames={},
             # Render and save output, if indicated
             if kwargs['show_img']:
                 if (count % 10) == 0:
-                    pf.render(color_frame)
+                    # pf.render(color_frame)
                     cv2.imshow('Frame ' + str(count), color_frame)
                 count += 1
             else:
                 if frame_num in save_frames:
-                    pf.render(color_frame)
+                    # pf.render(color_frame)
                     cv2.imwrite(save_frames[frame_num], color_frame)
 
 
@@ -378,7 +374,7 @@ def one_a_to_d():
             84: os.path.join(output_dir, 'ps7-1-a-3.png'),
             144: os.path.join(output_dir, 'ps7-1-a-4.png')
         },  # frames to save, mapped to filenames, and 'template' if desired
-        num_particles=200, sigma=20,  measurement_noise=0.05, show_img=False, start_near_temp=False)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
+        num_particles=200, sigma=10,  measurement_noise=0.05, show_img=False, start_near_temp=True)  # TODO: specify other keyword args that your model expects, e.g. measurement_noise=0.2
 
     # 1b
     # TODO: Repeat 1a, but vary template window size and discuss trade-offs (no output images required)
@@ -400,7 +396,7 @@ def one_e():
                             32: os.path.join(output_dir, 'ps7-1-e-2.png'),
                             46: os.path.join(output_dir, 'ps7-1-e-3.png')
                         },
-                        num_particles=500, sigma=15,  measurement_noise=0.1, show_img=False)  # TODO: Tune parameters so that model can continuing tracking through noise
+                        num_particles=500, sigma=15,  measurement_noise=0.1, show_img=False, start_near_temp=False)  # TODO: Tune parameters so that model can continuing tracking through noise
 
 
 def two_a():
@@ -415,7 +411,7 @@ def two_a():
                             50: os.path.join(output_dir, 'ps7-2-a-3.png'),
                             140: os.path.join(output_dir, 'ps7-2-a-4.png')
                         },
-                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=False)
+                        num_particles=500, sigma=15, measurement_noise=0.01, show_img=False, start_near_temp=True)
 
 
 def two_b():
@@ -429,7 +425,19 @@ def two_b():
                             50: os.path.join(output_dir, 'ps7-2-b-3.png'),
                             140: os.path.join(output_dir, 'ps7-2-b-4.png')
                         },
-                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=False)
+                        num_particles=500, sigma=5, measurement_noise=0.025, show_img=False, start_near_temp=True)
+    # rect = get_template_rect(os.path.join(input_dir, "hand.txt"))
+    # for i in range(1, 15):
+    #     sigma = int(i)
+    #     for j in range(1, 100, 5):
+    #         noise = j / 100.0
+    #         run_particle_filter(AppearanceModelPF,
+    #                     os.path.join(input_dir, "noisy_debate.avi"),
+    #                     rect,
+    #                     {
+    #                         140: os.path.join(output_dir, '2b/sigma' + str(sigma) + '_noise' + str(noise) + '.png')
+    #                     },
+    #                     num_particles=500, sigma=sigma, measurement_noise=0.025, show_img=False, start_near_temp=True)
 
 def three_a():
     run_particle_filter(HistogramPF,
@@ -461,13 +469,13 @@ def main():
     """ Note: Comment out parts of this code as necessary"""
 
     """ 1a """
-    # one_a_to_d()
+    one_a_to_d()
 
     """ 1e """
     # one_e()
 
     """ 2a """
-    two_a()
+    # two_a()
 
     """ 2b """
     # two_b()
