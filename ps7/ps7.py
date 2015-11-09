@@ -411,7 +411,7 @@ def two_a():
                         get_template_rect(os.path.join(input_dir, "hand.txt")),
                         {
                             'template': os.path.join(output_dir, 'ps7-2-a-1.png'),
-                            15: os.path.join(output_dir, 'ps7-2-a-2'),
+                            15: os.path.join(output_dir, 'ps7-2-a-2.png'),
                             50: os.path.join(output_dir, 'ps7-2-a-3.png'),
                             140: os.path.join(output_dir, 'ps7-2-a-4.png')
                         },
@@ -442,19 +442,19 @@ def three_a():
                             84: os.path.join(output_dir, 'ps7-3-a-3.png'),
                             144: os.path.join(output_dir, 'ps7-1-a-4.png')
                         },  # frames to save, mapped to filenames, and 'template' if desired
-                        num_particles=200, sigma=20,  measurement_noise=0.05, show_img=False, start_near_temp=True)
+                        num_particles=200, sigma=20,  measurement_noise=0.05, show_img=False, start_near_temp=False)
 
 def three_b():
     run_particle_filter(HistogramPF,
                         os.path.join(input_dir, "noisy_debate.avi"),
                         get_template_rect(os.path.join(input_dir, "hand.txt")),
                         {
-                            'template': os.path.join(output_dir, 'ps7-2-b-1.png'),
-                            15: os.path.join(output_dir, 'ps7-2-b-2.png'),
-                            50: os.path.join(output_dir, 'ps7-2-b-3.png'),
-                            140: os.path.join(output_dir, 'ps7-2-b-4.png')
+                            'template': os.path.join(output_dir, 'ps7-3-b-1.png'),
+                            15: os.path.join(output_dir, 'ps7-3-b-2.png'),
+                            50: os.path.join(output_dir, 'ps7-3-b-3.png'),
+                            140: os.path.join(output_dir, 'ps7-3-b-4.png')
                         },
-                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=False)
+                        num_particles=500, sigma=15, measurement_noise=0.1, show_img=False, start_near_temp=True)
 
 
 def main():
@@ -467,14 +467,18 @@ def main():
     # one_e()
 
     """ 2a """
-    # two_a()
+    two_a()
 
     """ 2b """
     # two_b()
 
     # EXTRA CREDIT
-    three_a()
-    # 3: Use color histogram distance instead of MSE (you can implement a derived class similar to AppearanceModelPF)
+    """ 3: Use color histogram distance instead of MSE (you can implement a derived class similar to AppearanceModelPF) """
+    # three_a()
+
+    # three_b()
+
+
     # 4: Implement a more sophisticated model to deal with occlusions and size/perspective changes
 
 
